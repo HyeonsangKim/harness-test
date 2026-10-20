@@ -43,7 +43,7 @@ CHECKS = {
 }
 
 
-def call(name, extra, prompt=ASK["en"], messages=None, max_tokens=4096):
+def call(name, extra, prompt=ASK["en"], messages=None, max_tokens=4096, timeout=180):
     body = {"model": MODEL, "max_tokens": max_tokens,
             "messages": messages or [{"role": "user", "content": prompt}], **extra}
     req = urllib.request.Request(URL, data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
@@ -51,7 +51,7 @@ def call(name, extra, prompt=ASK["en"], messages=None, max_tokens=4096):
                                           "Content-Type": "application/json"})
     start, hdrs = time.monotonic(), {}
     try:
-        with urllib.request.urlopen(req, timeout=180, context=CTX) as r:
+        with urllib.request.urlopen(req, timeout=timeout, context=CTX) as r:
             status, data, hdrs = r.status, json.load(r), r.headers
     except urllib.error.HTTPError as e:
         status, data, hdrs = e.code, e.read().decode("utf-8", "replace")[:3000], e.headers
@@ -121,17 +121,27 @@ def server_hints(rec):
     hints = {"server": hdrs.get("server"), "via": hdrs.get("via"),
              "x_headers": sorted(k for k in hdrs if k.startswith("x-")),
              "body_keys": sorted(resp), "choice_keys": sorted(choice), "id": str(resp.get("id"))[:16]}
-    req = urllib.request.Request(URL.rsplit("/chat/completions", 1)[0] + "/models",
+    models = get_json("/models", "models")
+    hints["models"] = models if isinstance(models, str) else [
+        {k: m[k] for k in ("id", "owned_by", "root", "max_model_len") if k in m}
+        for m in models.get("data", [])][:5]
+    info = get_json("/model/info", "model_info")
+    hints["model_info"] = info if isinstance(info, str) else [
+        {"name": d.get("model_name"), "max_input": (d.get("model_info") or {}).get("max_input_tokens"),
+         "max_output": (d.get("model_info") or {}).get("max_output_tokens")}
+        for d in info.get("data", []) if d.get("model_name") == MODEL][:3]
+    return hints
+
+def get_json(path, name):
+    req = urllib.request.Request(URL.rsplit("/chat/completions", 1)[0] + path,
                                  headers={"Authorization": "Bearer " + KEY})
     try:
         with urllib.request.urlopen(req, timeout=30, context=CTX) as r:
-            models = json.load(r)
-        (OUT / "models.json").write_text(json.dumps(models, ensure_ascii=False, indent=1), encoding="utf-8")
-        hints["models"] = [{k: m[k] for k in ("id", "owned_by", "root", "max_model_len") if k in m}
-                           for m in models.get("data", [])][:5]
+            data = json.load(r)
+        (OUT / f"{name}.json").write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+        return data if isinstance(data, dict) else {"data": data}
     except Exception as e:
-        hints["models"] = f"{type(e).__name__}: {e}"[:120]
-    return hints
+        return f"{type(e).__name__}: {e}"[:120]
 
 def roundtrip(base):
     first = call("rt_1", base)
@@ -155,6 +165,12 @@ def roundtrip(base):
     return "; ".join(out)
 
 
+PUZZLE = ("How many integers from 1 to 1000 are divisible by 3 or by 5, but not by 15? "
+          "Reply with only the final number.")
+EFFORTS = {"default": {}, "top_low": {"reasoning_effort": "low"}, "top_high": {"reasoning_effort": "high"},
+           "kw_low": {"chat_template_kwargs": {"reasoning_effort": "low"}},
+           "kw_high": {"chat_template_kwargs": {"reasoning_effort": "high"}}}
+
 SHORT = {"native_ok": "ok", "text_tool_call": "txt", "no_tool_call": "none", "length": "len",
          "native_bad_json": "badjson", "native_bad_args": "badargs", "native_no_id": "noid",
          "bad_shape": "shape"}
@@ -169,7 +185,9 @@ def summary(rep):
                               ("vllm", any(m.get("owned_by") == "vllm" for m in models)
                                or "stop_reason" in h["choice_keys"]),
                               ("sglang", "matched_stop" in h["choice_keys"])) if hit]
-    ctx = next((m["max_model_len"] for m in models if "max_model_len" in m), "?")
+    infos = h["model_info"] if isinstance(h["model_info"], list) else []
+    ctx = next((m["max_model_len"] for m in models if "max_model_len" in m), None) \
+        or next((i["max_input"] for i in infos if i["max_input"]), "?")
     rt = rep["roundtrip"]
     for a, b in ((": http_200 uses_result", "=Y"), (": http_200 NO_RESULT", "=N"), ("; ", " "),
                  ("keep_reasoning", "keep"), ("drop_reasoning", "drop"), ("user_after_tool", "user")):
@@ -184,11 +202,12 @@ def summary(rep):
     return [
         "S1 " + " ".join(f"{n}={short(v['kind'])}" for n, v in c.items()),
         "T1 think auto={} top={} kw={}".format(*(c[n]["think_chars"] for n in ("auto", "effort_top", "effort_kwargs"))),
-        f"SV {'+'.join(names) or '?'} ctx={ctx} models={'ok' if models else 'x'}",
+        f"SV {'+'.join(names) or '?'} ctx={ctx} models={'ok' if models else 'x'} info={'ok' if infos else 'x'}",
         "S2 " + rt,
         f"S3 {rate} txtfmt={fmt} p50={round(lat.get('p50', 0), 1)} p90={round(lat.get('p90', 0), 1)}",
         "S4 " + " ".join(f"{short(k)}:{burst.count(k)}" for k in sorted(set(burst))),
         "S5 " + " ".join(f"{k}={v}" for k, v in rep["chars_per_token"].items()),
+        "T2 " + " ".join(f"{n}={v['think']}c/{v['seconds']}s/{v['answer']}" for n, v in rep["effort"].items()),
         "ER " + next((f"{n}: {v['error']}" for n, v in c.items() if "error" in v), "-"),
     ]
 
@@ -253,6 +272,17 @@ def main():
         if isinstance(used, int) and isinstance(empty, int) and used > empty:
             report["chars_per_token"][name] = round((len(text) - 1) / (used - empty), 2)
     print(report["chars_per_token"])
+    print("== 6. thinking effort on a harder question (answer should be 401)")
+    report["effort"] = {}
+    for name, extra in EFFORTS.items():
+        rec = call(f"effort_{name}", extra, prompt=PUZZLE, max_tokens=16000, timeout=600)
+        msg = message(rec) or {}
+        if rec["status"] != 200 or not msg:
+            report["effort"][name] = {"think": 0, "seconds": rec["seconds"], "answer": f"http_{rec['status']}"}
+        else:
+            report["effort"][name] = {"think": len(msg.get("reasoning_content") or ""), "seconds": rec["seconds"],
+                                      "answer": "Y" if "401" in (msg.get("content") or "") else "N"}
+        print(f"{name:10} {report['effort'][name]}  {info(rec)}")
     (OUT / "profile.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     lines = summary(report)
     (OUT / "summary.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")

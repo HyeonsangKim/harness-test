@@ -311,7 +311,7 @@ nav a { color: var(--core-edge); margin-right: 12px; font-size: 14px; white-spac
 <tr><td>3</td><td><span class="tag t-done">완료</span>Mac 로컬 모델 조사</td><td>널리 쓰이고 도구 호출이 되는 모델만 메모리 구간별로 추렸다</td><td>DESIGN_KO.md 6절</td></tr>
 <tr><td>4</td><td><span class="tag t-done">완료</span>사실 검증</td><td>작성과 무관한 검토자가 원문과 직접 대조했다. 하네스 기법 61건(틀림 0), 문맥·기억 33건(틀림 1), Mac 모델 36건(틀림 3). 틀리거나 부분적으로 맞는 항목은 모두 고쳤다</td><td>각 문서에 반영</td></tr>
 <tr><td>5</td><td><span class="tag t-done">완료</span>논리·실현성 검토</td><td>별도 검토자가 목표 적합성, 폐쇄망 현실성, 설계 결함을 지적했고 모두 반영했다. 예: v1에는 기능이 아니라 자료 구조만 넣기, 안내문은 도구 결과 안에 넣기, 표는 가운데를 몰래 자르지 않기</td><td>DESIGN_KO.md</td></tr>
-<tr><td>6</td><td><span class="tag t-done">완료</span><code>probe.py</code></td><td>표준 라이브러리만 쓴 265줄, 5단계. 응답 헤더·필드·<code>/models</code>로 서버 종류와 최대 문맥 길이도 알아낸다. 가짜 GLM 서버로 옵션 거부, 텍스트로 샌 호출, 동시 요청 제한, 연결 실패, 키 미기록, 토큰 보정을 시험해 통과했다. <b>실제 GLM에서는 아직 안 돌렸다.</b></td><td>probe.py, PROBE_GUIDE_KO.md</td></tr>
+<tr><td>6</td><td><span class="tag t-done">완료</span><code>probe.py</code></td><td>표준 라이브러리만 쓴 295줄, 6단계. 응답 헤더·필드·<code>/models</code>로 서버 종류와 최대 문맥 길이도 알아낸다. 가짜 GLM 서버로 옵션 거부, 텍스트로 샌 호출, 동시 요청 제한, 연결 실패, 키 미기록, 토큰 보정을 시험해 통과했다. <b>실제 GLM에서는 아직 안 돌렸다.</b></td><td>probe.py, PROBE_GUIDE_KO.md</td></tr>
 <tr><td>7</td><td><span class="tag t-todo">미착수</span>하네스 본체 v1</td><td>probe 결과와 업무 예시가 오면 사외에서 구현하고, 가짜 서버와 Mac 로컬 모델로 검증한 뒤 push한다</td><td>—</td></tr>
 </table></div>
 
