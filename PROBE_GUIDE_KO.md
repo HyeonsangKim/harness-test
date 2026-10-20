@@ -88,12 +88,14 @@ PowerShell 명령 기록에 키가 남을 수 있어 권장 방법을 우선한�
 plain          no_tool_call       0.06s  keys=['reasoning_content'] in_tok=8 cached=0 think_chars=11 out_tok=20 think_tok=12
 auto           native_ok          ...
 strict         http_400           0.06s  {"error":"strict not supported"}
+server {"server": "uvicorn", "via": null, "x_headers": ["x-request-id"], "body_keys": [...], "choice_keys": [...], "id": "chatcmpl-...", "models": [{"id": "...", "owned_by": "vllm", "max_model_len": 202752}]}
 base for 2-4: {"tool_choice": "auto", "reasoning_effort": "low"}
 == 2. tool round trip
 keep_reasoning: http_200 uses_result; drop_reasoning: http_200 uses_result; user_after_tool: http_200 uses_result
 == 3. reliability: 10 x en + 10 x ko, one at a time
 en {'native_ok': 10}
 ko {'native_ok': 9, 'text_tool_call': 1}
+text sample '<tool_call>get_weather<arg_key>city</arg_key>...'
 latency {'p50': ..., 'p90': ..., 'max': ...}
 == 4. burst: 4 requests at once
 ['native_ok 12.3s', 'http_429 0.1s', ...]
@@ -119,7 +121,18 @@ saved: C:\Users\...\probe_out\20261020-101500
 | `cached` | 캐시된 입력 토큰 수. 같은 요청을 반복하는 3단계에서 0보다 크면 게이트웨이가 접두부 캐시를 쓴다. `None`이면 보고하지 않는 게이트웨이 |
 | 왕복 `keep_reasoning` / `drop_reasoning` | 사고 내용을 붙여서/빼고 돌려줬을 때 도구 결과를 쓰는지 |
 | 왕복 `user_after_tool` | 도구 결과 뒤에 사용자 메시지를 하나 더 붙여도 정상인지. 하네스 안내문을 어디에 넣을지 정하는 근거 |
+| `text sample` | 본문으로 샌 도구 호출의 첫 120자. `text_tool_call`이 있을 때만 나온다. 형식을 보고 복구 파서를 맞춘다 |
 | 5단계 `chars_per_token` | 한국어·영어·JSON이 토큰 하나당 몇 글자인지. 문맥 예산 계산의 초기값 |
+
+`server` 줄은 게이트웨이 담당자에게 묻지 않고 서버 종류를 알아내기 위한 단서다. `/models` 주소에서 모델 목록도 받아 `models.json`으로 저장한다.
+
+| 단서 | 뜻 |
+|---|---|
+| `owned_by: "vllm"`, `max_model_len`, `body_keys`에 `prompt_logprobs`·`kv_transfer_params`, `choice_keys`에 `stop_reason` | vLLM |
+| `choice_keys`에 `matched_stop` | SGLang |
+| `x_headers`에 `x-litellm-...` | LiteLLM 프록시를 거침 (뒤에 실제 서버가 따로 있음) |
+| `max_model_len` | 서버가 허용하는 최대 문맥 길이. 모델 프로필에 기록 |
+| `models`가 `HTTPError ... 404` 등 | 목록 주소를 막아 둔 게이트웨이. 다른 단서로 판단 |
 
 주의: 옵션이 200이어도 서버가 조용히 무시했을 수 있다. `effort_top`의 `think_chars`/`out_tok`가 `auto`(기본 max)보다 확실히 작은지 비교한다.
 
@@ -136,7 +149,7 @@ saved: C:\Users\...\probe_out\20261020-101500
 
 ## 9. 결과 전달
 
-- 화면의 `== 1.`부터 `saved:` 직전까지 약 20줄을 옮겨 적어 전달한다. 오류 원문은 앞부분만 적어도 된다.
+- 화면의 `== 1.`부터 `saved:` 직전까지 약 25줄을 옮겨 적어 전달한다. 오류 원문은 앞부분만 적어도 된다.
 - `probe_out` 폴더는 사내에 보관한다. 요청·응답 원문이 들어 있어 v1의 재생 테스트 자료로 다시 쓴다. 키는 들어 있지 않다. `.gitignore`에 들어 있어 실수로 push되지 않는다.
 
 ## 10. 이 테스트의 판정 기준

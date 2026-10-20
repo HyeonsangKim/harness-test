@@ -49,16 +49,17 @@ def call(name, extra, prompt=ASK["en"], messages=None, max_tokens=4096):
     req = urllib.request.Request(URL, data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
                                  headers={"Authorization": "Bearer " + KEY,
                                           "Content-Type": "application/json"})
-    start = time.monotonic()
+    start, hdrs = time.monotonic(), {}
     try:
         with urllib.request.urlopen(req, timeout=180, context=CTX) as r:
-            status, data = r.status, json.load(r)
+            status, data, hdrs = r.status, json.load(r), r.headers
     except urllib.error.HTTPError as e:
-        status, data = e.code, e.read().decode("utf-8", "replace")[:3000]
+        status, data, hdrs = e.code, e.read().decode("utf-8", "replace")[:3000], e.headers
     except Exception as e:
         status, data = 0, f"{type(e).__name__}: {e}"
     rec = {"name": name, "request": body, "status": status,
-           "seconds": round(time.monotonic() - start, 2), "response": data}
+           "seconds": round(time.monotonic() - start, 2), "response": data,
+           "headers": {k.lower(): v for k, v in hdrs.items() if k.lower() != "set-cookie"}}
     (OUT / f"{name}.json").write_text(json.dumps(rec, ensure_ascii=False, indent=1), encoding="utf-8")
     return rec
 
@@ -103,14 +104,34 @@ def info(rec):
     think_tok = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
     cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens")
     keys = sorted(set(msg) - {"role", "content", "tool_calls"})
+    text = "" if msg.get("tool_calls") else f" text={(msg.get('content') or '')[:60]!r}"
     return (f"keys={keys} in_tok={usage.get('prompt_tokens')} cached={cached} "
-            f"think_chars={len(think)} out_tok={usage.get('completion_tokens')} think_tok={think_tok}")
+            f"think_chars={len(think)} out_tok={usage.get('completion_tokens')} think_tok={think_tok}{text}")
 
 
 def prompt_tokens(rec):
     usage = rec["response"].get("usage") if isinstance(rec["response"], dict) else None
     return (usage or {}).get("prompt_tokens")
 
+
+def server_hints(rec):
+    resp = rec["response"] if isinstance(rec["response"], dict) else {}
+    choice = (resp.get("choices") or [{}])[0]
+    hdrs = rec["headers"]
+    hints = {"server": hdrs.get("server"), "via": hdrs.get("via"),
+             "x_headers": sorted(k for k in hdrs if k.startswith("x-")),
+             "body_keys": sorted(resp), "choice_keys": sorted(choice), "id": str(resp.get("id"))[:16]}
+    req = urllib.request.Request(URL.rsplit("/chat/completions", 1)[0] + "/models",
+                                 headers={"Authorization": "Bearer " + KEY})
+    try:
+        with urllib.request.urlopen(req, timeout=30, context=CTX) as r:
+            models = json.load(r)
+        (OUT / "models.json").write_text(json.dumps(models, ensure_ascii=False, indent=1), encoding="utf-8")
+        hints["models"] = [{k: m[k] for k in ("id", "owned_by", "root", "max_model_len") if k in m}
+                           for m in models.get("data", [])][:5]
+    except Exception as e:
+        hints["models"] = f"{type(e).__name__}: {e}"[:120]
+    return hints
 
 def roundtrip(base):
     first = call("rt_1", base)
@@ -145,8 +166,11 @@ def main():
     print("== 1. options (status, result, details)")
     for name, extra in CHECKS.items():
         rec = call(name, extra, prompt="Reply with OK." if name == "plain" else ASK["en"])
+        if name == "plain":
+            report["server"] = server_hints(rec)
         report["checks"][name] = {"status": rec["status"], "kind": kind(rec), "seconds": rec["seconds"]}
         print(f"{name:14} {kind(rec):16} {rec['seconds']:6}s  {info(rec)}")
+    print("server", json.dumps(report["server"], ensure_ascii=False))
     ok = {n for n, c in report["checks"].items() if c["status"] == 200}
     base = {"tools": [TOOL], "tool_choice": "auto"}
     if args.effort != "none" and "effort_top" in ok:
@@ -166,6 +190,10 @@ def main():
         kinds = [kind(r) for r in recs if r["name"].startswith(f"rate_{lang}")]
         report["rate"][lang] = {k: kinds.count(k) for k in sorted(set(kinds))}
         print(lang, report["rate"][lang])
+    leak = next((r for r in recs if kind(r) == "text_tool_call"), None)
+    if leak:
+        report["text_sample"] = (message(leak).get("content") or "")[:120]
+        print("text sample", repr(report["text_sample"]))
     secs = sorted(r["seconds"] for r in recs if r["status"] == 200)
     if len(secs) >= 2:
         report["latency_s"] = {"p50": statistics.median(secs),
