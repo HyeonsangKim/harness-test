@@ -7,7 +7,7 @@
 ```powershell
 git pull
 python probe.py --n 10        # 약 45회 호출. 끝에 요약 9줄 (9절)
-python behavior.py --rep 3    # 약 40회 호출. 끝에 요약 6줄 (12절)
+python behavior.py --rep 3    # 약 55회 호출. 끝에 요약 7줄 (12절)
 ```
 
 전달할 것은 두 스크립트의 `== copy these lines` 아래 줄들뿐이다. 키는 스크립트마다 한 번씩 입력한다.
@@ -230,19 +230,20 @@ python3 probe.py --n 3 --burst 2
 
 ## 12. 모델 동작 맛보기: behavior.py
 
-probe.py가 "게이트웨이와 형식"을 본다면, behavior.py는 "모델이 일을 어떻게 하는지"를 작은 문제 6종으로 본다. probe.py와 같은 폴더에서, 같은 환경변수로 실행한다. 키는 다시 입력한다.
+probe.py가 "게이트웨이와 형식"을 본다면, behavior.py는 "모델이 일을 어떻게 하는지"를 작은 문제 7종으로 본다. probe.py와 같은 폴더에서, 같은 환경변수로 실행한다. 키는 다시 입력한다.
 
 ```powershell
 python behavior.py --rep 3
 ```
 
-약 40회 호출, 사고량은 기본 low(`--effort high`로 바꿀 수 있다). 끝나면 `== copy these lines` 아래 6줄만 옮긴다.
+약 55회 호출, 사고량은 기본 low(`--effort high`로 바꿀 수 있다). 끝나면 `== copy these lines` 아래 7줄만 옮긴다.
 
 ```
 B-multi 3/3 calls=2,3,2
 B-recover 2/3 calls=3,3,1
 B-parallel 3/3 par=2,1,2
 B-pick 3/3 first=get_receivable,get_receivable,get_receivable
+B-edit 2/3 calls=5,4,8 editfail=0,1,3
 B-needle 8000=Y/8120tok/3.1s 32000=N/32400tok/9.8s
 B-json Y,Y,fence
 ```
@@ -253,6 +254,7 @@ B-json Y,Y,fence
 | `B-recover` | 틀린 품목코드로 재고 조회 → 오류 메시지 → 검색 후 다시 조회 | 도구 오류를 읽고 스스로 고치는지. 같은 틀린 호출을 반복하는지 |
 | `B-parallel` | "서울이랑 부산 날씨 둘 다" | 한 번에 도구를 2개 부르는지(`par`=한 응답의 최대 호출 수). 1이면 하나씩 부름 |
 | `B-pick` | 도구 20개 중 미수금 조회 도구 고르기 | 도구가 많을 때 맞는 것을 고르는지. `first`=처음 부른 도구 |
+| `B-edit` | 버그 2개(첫 값 빠뜨림, 빈 목록 오류)가 있는 작은 파이썬 함수를 읽고 고친 뒤 테스트 실행 | 코드를 정확히 고치는지(마지막에 하네스가 테스트를 다시 돌려 판정). `editfail`=바꿀 원문을 정확히 못 맞춘 횟수. 모델이 고친 코드는 결과 폴더 안에서만, 10초 제한으로 실행된다 |
 | `B-needle` | 약 8천·3만 2천 토큰 한국어 글 가운데 숨긴 암호명 찾기 | 긴 문맥에서 정보를 놓치는지. `Y/N`, 실제 입력 토큰, 시간 |
 | `B-json` | 전표 3건을 JSON으로만 출력 | 형식 지시를 지키는지. `fence`=코드블록으로 감쌈, `shape`=내용 틀림, `bad`=JSON 아님 |
 

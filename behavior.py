@@ -1,9 +1,11 @@
-"""Small behavior checks: multi-step, error recovery, parallel calls, tool choice, long context, JSON.
+"""Small behavior checks: multi-step, error recovery, parallel calls, tool choice, code edit, long context, JSON.
 Uses probe.py (same env vars, same key prompt). run: python behavior.py --rep 3
 """
 import argparse
 import json
 import re
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -78,6 +80,52 @@ def many(name, args):
         return {"customer": (args or {}).get("customer"), "balance": 3250000}
     return {"error": "not relevant"}
 
+BUGGY = '''def average(values):
+    """Return the mean of values. Return 0.0 for an empty list."""
+    total = 0
+    for v in values[1:]:
+        total += v
+    return total / len(values)
+'''
+TEST = '''from calc import average
+assert average([2, 4, 6]) == 4, "average([2, 4, 6]) should be 4"
+assert average([5]) == 5, "average([5]) should be 5"
+assert average([]) == 0.0, "average([]) should be 0.0"
+print("ALL PASS")
+'''
+EDIT_TOOLS = [
+    fn("read_file", "Read a file in the project folder.", {"path": S}, ["path"]),
+    fn("replace_in_file", "Replace text in a file. `old` must match the file content exactly and appear once.",
+       {"path": S, "old": S, "new": S}, ["path", "old", "new"]),
+    fn("run_tests", "Run the project tests and return the output.")]
+
+def run_tests(folder):
+    try:
+        r = subprocess.run([sys.executable, "-E", "-s", "test_calc.py"], cwd=folder, capture_output=True,
+                           text=True, timeout=10)
+        return (r.stdout + r.stderr)[-1500:]
+    except subprocess.TimeoutExpired:
+        return "timeout after 10s"
+
+def editor(folder, stats):
+    def impl(name, args):
+        args = args or {}
+        if name == "run_tests":
+            return run_tests(folder)
+        path = folder / Path(str(args.get("path", ""))).name
+        if not path.exists():
+            return {"error": f"no such file. Files: {sorted(f.name for f in folder.iterdir())}"}
+        text = path.read_text(encoding="utf-8")
+        if name == "read_file":
+            return text
+        count = text.count(args.get("old") or "\0")
+        if count != 1:
+            stats["editfail"] += 1
+            return {"error": f"`old` found {count} times; it must match exactly once. Use read_file to copy exact text."}
+        path.write_text(text.replace(args["old"], str(args.get("new", ""))), encoding="utf-8")
+        return "ok"
+    return impl
+
 FILLER = "회의록에 따르면 다음 분기 예산은 조금 늘어나며, 각 팀은 금요일까지 계획서를 내야 한다. "
 NEEDLE = "참고로 이번 분기 신규 프로젝트의 암호명은 '푸른고래'로 정해졌다. "
 
@@ -145,6 +193,22 @@ def main():
         errs = ",".join(r["err"] for r in res if r["err"])
         lines.append(f"B-{name} {passed}/{args.rep} {extra}" + (f" err={errs}" if errs else ""))
         print(lines[-1])
+    edit = []
+    for i in range(args.rep):
+        folder = P.OUT / f"edit_{i}"
+        folder.mkdir()
+        (folder / "calc.py").write_text(BUGGY, encoding="utf-8")
+        (folder / "test_calc.py").write_text(TEST, encoding="utf-8")
+        stats = {"editfail": 0}
+        r = run(f"edit_{i}", EDIT_TOOLS, editor(folder, stats),
+                "calc.py의 average 함수가 테스트를 통과하지 못해. 파일을 읽고 고친 다음 run_tests로 통과를 확인해줘.", base)
+        r["pass"] = "ALL PASS" in run_tests(folder)
+        edit.append({**r, **stats})
+    report["edit"] = edit
+    errs = ",".join(r["err"] for r in edit if r["err"])
+    lines.append(f"B-edit {sum(r['pass'] for r in edit)}/{args.rep} calls=" + ",".join(str(len(r["calls"])) for r in edit)
+                 + " editfail=" + ",".join(str(r["editfail"]) for r in edit) + (f" err={errs}" if errs else ""))
+    print(lines[-1])
     needle = []
     for size in [int(x) for x in args.ctx.split(",") if x]:
         n = int(size * 1.2 / len(FILLER))
