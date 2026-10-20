@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nemotron 3 Super 분석</title>
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1f23; --muted: #5d6470; --line: #8a919c;
+  --core: #e8eefc; --core-edge: #3d63c9; --adapt: #e7f6ec; --adapt-edge: #2f8a4c;
+  --prof: #fdf1e2; --prof-edge: #c27a1a; --ext: #f0f0f0; --ext-edge: #7b7f87;
+  --warn: #fdeaea; --warn-edge: #c24141; --done: #2f8a4c; --bar: #9db4ee;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171b; --panel: #1d2026; --ink: #e9ebef; --muted: #a3a9b4; --line: #8d95a1;
+    --core: #1f2a44; --core-edge: #7c9cf0; --adapt: #1c3326; --adapt-edge: #6cc58a;
+    --prof: #3a2c17; --prof-edge: #e3a659; --ext: #2a2d33; --ext-edge: #9aa0a8;
+    --warn: #3d2020; --warn-edge: #e57b7b; --done: #6cc58a; --bar: #3a5394;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15171b; --panel: #1d2026; --ink: #e9ebef; --muted: #a3a9b4; --line: #8d95a1;
+  --core: #1f2a44; --core-edge: #7c9cf0; --adapt: #1c3326; --adapt-edge: #6cc58a;
+  --prof: #3a2c17; --prof-edge: #e3a659; --ext: #2a2d33; --ext-edge: #9aa0a8;
+  --warn: #3d2020; --warn-edge: #e57b7b; --done: #6cc58a; --bar: #3a5394;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  line-height: 1.65; font-size: 16px;
+}
+main { max-width: 940px; margin: 0 auto; padding: 32px 16px 80px; }
+h1 { font-size: 28px; margin: 0 0 6px; }
+h2 { font-size: 21px; margin: 48px 0 12px; padding-top: 12px; border-top: 1px solid var(--ext); }
+h3 { font-size: 17px; margin: 24px 0 8px; }
+.sub { color: var(--muted); margin: 0 0 20px; }
+.card { background: var(--panel); border-radius: 12px; padding: 18px 20px; margin: 16px 0; border: 1px solid var(--ext); }
+.tldr { border-left: 5px solid var(--core-edge); }
+.warnbox { border-left: 5px solid var(--warn-edge); background: var(--warn); }
+.use { border-left: 5px solid var(--adapt-edge); }
+.later { border-left: 5px solid var(--prof-edge); }
+.no { border-left: 5px solid var(--ext-edge); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { border: 1px solid var(--ext); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { background: var(--ext); }
+.tablewrap { overflow-x: auto; }
+.num { text-align: right; white-space: nowrap; }
+.best { font-weight: 700; color: var(--done); }
+.low { color: var(--warn-edge); font-weight: 700; }
+.tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px; margin-right: 4px; white-space: nowrap; }
+.t-ok { background: var(--adapt); color: var(--done); border: 1px solid var(--adapt-edge); }
+.t-part { background: var(--prof); color: var(--prof-edge); border: 1px solid var(--prof-edge); }
+.t-bad { background: var(--warn); color: var(--warn-edge); border: 1px solid var(--warn-edge); }
+code { background: var(--ext); padding: 1px 5px; border-radius: 4px; font-size: 14px; word-break: break-all; }
+nav a { color: var(--core-edge); margin-right: 12px; font-size: 14px; white-space: nowrap; }
+a { color: var(--core-edge); }
+.bars { display: grid; grid-template-columns: 120px 1fr; gap: 6px 10px; align-items: center; font-size: 14px; margin: 8px 0 16px; }
+.bar { height: 22px; background: var(--bar); border-radius: 4px; position: relative; min-width: 2px; }
+.bar span { position: absolute; left: 6px; top: 1px; font-size: 13px; color: var(--ink); white-space: nowrap; }
+.bars .lbl { color: var(--muted); }
+.flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; margin: 12px 0; }
+.flow div { flex: 1 1 140px; background: var(--core); border: 1px solid var(--core-edge); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.flow div b { display: block; }
+.flow.ours div { background: var(--adapt); border-color: var(--adapt-edge); }
+.small { font-size: 14px; color: var(--muted); }
+@media (max-width: 720px) {
+  body { font-size: 15px; }
+  th, td { padding: 6px 7px; font-size: 14px; }
+  .bars { grid-template-columns: 92px 1fr; }
+}
+</style>
+</head>
+<body>
+<main>
+<h1>Nemotron 3 Super 자료 분석</h1>
+<p class="sub">브레인크루 리뷰와 NVIDIA 얼리 액세스 자료 2종을 읽고, 공개 원문(모델 카드·기술 보고서·vLLM 문서)으로 검증한 뒤 우리 하네스에 쓸 것을 골랐다. 2026-10-20 기준.</p>
+<nav><a href="#s1">1. 자료</a><a href="#s2">2. 모델</a><a href="#s3">3. 브레인크루 결과</a><a href="#s4">4. 냉정하게 읽기</a><a href="#s5">5. 우리가 쓸 것</a><a href="#s6">6. 모델로 쓸 수 있나</a><a href="#s7">7. 출처</a></nav>
+
+<div class="card tldr">
+<b>요약</b>
+<ul>
+<li><b>모델 자체는 우리 후보가 아니다.</b> 사내 게이트웨이에 없다. Mac에서는 4비트로도 64~72GB가 든다. 한국어는 공식 지원 언어가 아니다. 공개된 도구 사용 점수(τ² 평균 61)도 이미 고른 GLM-4.7-Flash 쪽 공개값보다 낮다.</li>
+<li><b>브레인크루 결론("사고를 끈 fast 모드로 충분")은 절반만 맞다.</b> 지시 따르기, 대화, 재정렬, SQL에서는 맞다. 하지만 같은 자료에서 긴 문맥 검색(RULER)은 사고를 켰을 때 0.97, 껐을 때 0.70이다. 실험은 모두 1회 실행이라 0.01~0.04 차이는 구분이 안 된다.</li>
+<li><b>쓸 만한 것은 모델보다 방법이다.</b>
+  <ul>
+  <li>v1 설계에 넣을 것 4개: 두 가지 도구 호출 형식 복구, 사고·본문이 뒤바뀐 응답 처리, 같은 호출 반복 감지, 업무별 사고량 정책.</li>
+  <li>평가 설계에 넣을 것 3개: 변별력 없는 과제 거르기, 방해 표·열을 넣은 ERP 합성 자료, 요청 문체 다양화.</li>
+  <li>나중에 쓸 것 2개: LLM 재정렬, 하네스 쪽 사고 예산.</li>
+  </ul>
+  모두 원문으로 확인했다.</li>
+</ul>
+</div>
+
+<h2 id="s1">1. 세 자료는 무엇인가</h2>
+<div class="tablewrap"><table>
+<tr><th>자료</th><th>만든 곳·시점</th><th>내용</th><th>성격</th></tr>
+<tr><td>Briefing Slide Deck (15쪽)</td><td>NVIDIA, 2026-03-04 얼리 액세스 설명회</td><td>Nemotron 3 제품군(Nano 30B-A3B / Super 120B-A12B / Ultra 약 500B-A50B), 개방성·효율 그래프, 기술 요점, 엠바고 시각</td><td>홍보 자료. 그래프의 Super 점은 "Projected"(발표 전 예상치)</td></tr>
+<tr><td>Reviewer's Guide (20쪽)</td><td>NVIDIA, 리뷰어 배포</td><td>구조 설명, 사고 모드 3종 사용법, API 예제, 평가 기준 9개, 예시 프롬프트, 권장 설정</td><td>사용 설명서. 문서 안에 서로 맞지 않는 값이 있음(4절)</td></tr>
+<tr><td>Model Review (28쪽)</td><td>브레인크루, 2026-03-25</td><td>학습 데이터 요약, 사고 모드 3종 × 벤치마크 4종, RAG 실험 3종(검색 전처리, 재정렬, NL2SQL), OpenCode 에이전트 사례, 후기</td><td>유일한 독립 실측. 한국어 실험 포함</td></tr>
+</table></div>
+
+<h2 id="s2">2. 모델 요점 (원문으로 확인한 값)</h2>
+<div class="tablewrap"><table>
+<tr><th>항목</th><th>값</th><th>확인</th></tr>
+<tr><td>크기</td><td>전체 120.6B, 활성 12.7B (MoE). 4비트(NVFP4)로 사전학습</td><td><span class="tag t-ok">확인</span>기술 보고서</td></tr>
+<tr><td>구조</td><td>Mamba-2 층 + MoE(LatentMoE) + 일부 어텐션 층. 여러 토큰 예측(MTP)으로 자체 추측 디코딩</td><td><span class="tag t-ok">확인</span>기술 보고서</td></tr>
+<tr><td>문맥</td><td>최대 1M 토큰. 서빙 예시는 262,144</td><td><span class="tag t-ok">확인</span>모델 카드</td></tr>
+<tr><td>라이선스</td><td>NVIDIA Nemotron Open Model License. 상업 사용 가능</td><td><span class="tag t-ok">확인</span>모델 카드. 가이드의 "연구 목적만"은 얼리 액세스 엔드포인트 약관</td></tr>
+<tr><td>지원 언어</td><td>영·불·독·이·일·스·중. <b>한국어 없음</b></td><td><span class="tag t-ok">확인</span>모델 카드</td></tr>
+<tr><td>사고 모드</td><td><code>chat_template_kwargs</code>로 켬(<code>enable_thinking</code>) / 끔 / 적게(<code>low_effort</code>). 예산은 하네스 쪽 2단계 호출로 구현</td><td><span class="tag t-ok">확인</span>모델 카드</td></tr>
+<tr><td>도구 호출 형식</td><td>Qwen3 계열 XML. vLLM <code>--tool-call-parser qwen3_coder</code>, <code>--reasoning-parser nemotron_v3</code></td><td><span class="tag t-ok">확인</span>모델 카드·vLLM 문서</td></tr>
+<tr><td>권장 샘플링</td><td>temperature 1.0, top_p 0.95</td><td><span class="tag t-ok">확인</span>모델 카드</td></tr>
+<tr><td>처리량</td><td>GPT-OSS-120B보다 최대 2.2배, Qwen3.5-122B보다 7.5배</td><td><span class="tag t-part">조건부</span>NVIDIA 자체 측정(B200)</td></tr>
+<tr><td>공식 점수</td><td>τ² 평균 61.15 (항공 56.25 / 소매 62.83 / 통신 64.36), IFBench 72.56, SWE-Bench(OpenHands) 60.47, RULER@1M 91.75, MMLU-ProX 79.36</td><td><span class="tag t-ok">확인</span>모델 카드. Qwen3.5-122B는 τ² 74.53으로 더 높음</td></tr>
+<tr><td>Mac 실행</td><td>4비트 64~72GB, 8비트 약 128GB</td><td><span class="tag t-part">제3자</span>Unsloth 안내</td></tr>
+</table></div>
+
+<h2 id="s3">3. 브레인크루 실험 결과</h2>
+<p>세 모드 정의: <b>deep</b> = 사고 켬, <b>fast</b> = 사고 끔, <b>balanced</b> = 사고 켬 + low_effort. 비교 모델은 GPT-4o, GPT-5.4.</p>
+
+<h3>3-1. 모드별 점수 (그림 6 히트맵에서 옮김)</h3>
+<div class="tablewrap"><table>
+<tr><th>벤치마크</th><th class="num">deep</th><th class="num">fast</th><th class="num">balanced</th><th class="num">GPT-4o</th><th class="num">GPT-5.4</th></tr>
+<tr><td>IFEval 프롬프트 엄격</td><td class="num">0.82</td><td class="num best">0.86</td><td class="num">0.84</td><td class="num">0.85</td><td class="num">0.87</td></tr>
+<tr><td>IFEval 지시 엄격</td><td class="num">0.88</td><td class="num best">0.90</td><td class="num">0.89</td><td class="num">0.90</td><td class="num">0.91</td></tr>
+<tr><td>MT-Bench (10점)</td><td class="num low">7.19</td><td class="num best">9.04</td><td class="num">8.13</td><td class="num">7.31</td><td class="num">8.05</td></tr>
+<tr><td>RULER (길이 미기재)</td><td class="num best">0.97</td><td class="num low">0.70</td><td class="num">0.95</td><td class="num">—</td><td class="num">—</td></tr>
+<tr><td>τ-bench 평균 보상</td><td class="num best">0.70</td><td class="num best">0.70</td><td class="num">0.63</td><td class="num">0.65</td><td class="num">0.88</td></tr>
+</table></div>
+<p class="small">RULER 행이 핵심이다. 사고를 끄면 긴 문맥에서 찾기 점수가 27포인트 떨어진다. 브레인크루는 "fast로 손해 없다"고 결론 냈지만 자기 자료와 맞지 않는다.</p>
+
+<h3>3-2. 한국어 문서 재정렬 (MIRACL 한국어 50개 질의)</h3>
+<p>BM25로 상위 100개를 뽑고, LLM이 20개씩 10칸 겹쳐 가며 다시 줄 세운다(질의당 9회 호출).</p>
+<div class="bars">
+<div class="lbl">BM25만</div><div class="bar" style="width:39.8%"><span>NDCG@10 0.323</span></div>
+<div class="lbl">fast</div><div class="bar" style="width:65.6%"><span>0.532 · 73초/질의</span></div>
+<div class="lbl">balanced</div><div class="bar" style="width:62.5%"><span>0.507 · 368초/질의</span></div>
+<div class="lbl">deep</div><div class="bar" style="width:61.8%"><span>0.502 · 1,077초/질의</span></div>
+<div class="lbl">GPT-5.4</div><div class="bar" style="width:65.1%"><span>0.529 · 21초/질의</span></div>
+<div class="lbl">GPT-4o</div><div class="bar" style="width:62.5%"><span>0.508 · 29초/질의</span></div>
+<div class="lbl">정답 상한</div><div class="bar" style="width:100%"><span>0.812</span></div>
+</div>
+<p class="small">LLM 재정렬은 BM25 대비 크게 오른다(+0.21). 사고를 켜면 15배 느려지는데 점수는 오히려 조금 낮다. 지연은 요청 제한(429)이 잦았던 얼리 액세스 공용 엔드포인트 기준이라 모델 속도로 읽으면 안 된다.</p>
+
+<h3>3-3. NL2SQL (Spider 200문항, 한국어·영어)</h3>
+<div class="tablewrap"><table>
+<tr><th>모델</th><th class="num">한국어 SQAM</th><th class="num">영어 SQAM</th><th class="num">차이</th></tr>
+<tr><td>Nemotron 3 Super</td><td class="num">0.642</td><td class="num">0.681</td><td class="num">−0.039</td></tr>
+<tr><td>GPT-5.4</td><td class="num">0.667</td><td class="num">0.692</td><td class="num">−0.025</td></tr>
+<tr><td>GPT-4o</td><td class="num">0.648</td><td class="num">0.673</td><td class="num">−0.025</td></tr>
+<tr><td>Gemma3 12B</td><td class="num">0.657</td><td class="num">0.669</td><td class="num">−0.012</td></tr>
+<tr><td>Qwen3 14B</td><td class="num">0.645</td><td class="num">0.660</td><td class="num">−0.015</td></tr>
+</table></div>
+<p class="small">다섯 모델이 0.64~0.69에 몰려 있다. 12B 모델과 GPT-5.4가 거의 같다. 이 과제와 지표로는 모델 차이가 거의 드러나지 않는다. 지표로 "실행 정확도"도 적었지만 그 결과는 나오지 않는다. 한국어 질문은 영어보다 1~4포인트 낮다.</p>
+
+<h3>3-4. 나머지</h3>
+<ul>
+<li><b>검색 전처리</b>(질문 여러 개로 바꾸기, 쪼개기, 가상 답 만들기 HyDE; 가상 시나리오 25개, LLM 채점, 5점 만점): Nemotron 4.64, GPT-5.4 4.70, GPT-4o 4.32. 차이가 작다.</li>
+<li><b>에이전트 사례</b>(OpenCode + Nemotron vs Claude Code + Opus): 보고서 조사 후 PPT 만들기, 스네이크 게임. 화면 캡처 비교만 있고 점수는 없다. Nemotron 쪽 PPT는 내용이 빈약하다.</li>
+<li><b>후기</b>: 쉬운 일에는 크기 대비 좋은 선택지, 추론력은 아쉬움, 요청 제한이 잦음. 부록의 세차장 문제("50m 거리 세차장, 걸어갈까 차로 갈까?")는 53개 모델 중 5개만 10회 모두 맞혔다고 인용했다. 다만 같은 사이트의 다른 실행에서는 결과가 엇갈린다.</li>
+</ul>
+
+<h2 id="s4">4. 냉정하게 읽기</h2>
+<div class="card warnbox">
+<b>브레인크루 리뷰의 한계</b>
+<ul>
+<li><b>모두 1회 실행이다.</b> 반복, 분산, 온도 설정이 없다. 표본도 작다(재정렬 50, 시나리오 25). 0.01~0.04 차이로 순위를 매긴 부분은 우연과 구분되지 않는다.</li>
+<li><b>결론과 자료가 어긋난다.</b> "fast 모드로 손해 없다"고 했지만 RULER는 0.97에서 0.70으로 떨어진다.</li>
+<li><b>MT-Bench deep 7.19는 이상치다.</b> 사고를 켰는데 GPT-4o보다 낮다. 원인 설명이 없다. 사고 내용이 채점에 섞였거나 출력이 잘렸을 가능성이 있다(추정).</li>
+<li><b>τ-bench 조건을 적지 않았다.</b> 버전, 도메인, 시도 횟수가 없다. NVIDIA 공식 τ²(평균 61.15)와 직접 비교할 수 없다.</li>
+<li><b>"Benchmark for RAG"라는 제목은 맞지 않는다.</b> IFEval, MT-Bench, τ-bench는 RAG 벤치마크가 아니다.</li>
+<li><b>학습 데이터 요약은 기술 보고서와 대체로 일치한다.</b> 20k 질의, 24개 동작 분류, GPT-OSS-120B 판정, AGENTS.md 명세, Qwen3-Coder-480B·MiniMax M2.5로 Codex·OpenCode·Qwen Code·Stirrup 기록을 수집한 부분이다. 다만 "걸러낸 것"이 무엇인지 모호하게 적었다. 보고서는 기존 코드베이스를 참조하거나 기존 파일을 고치는 과제를 <b>제외</b>했다고 쓴다.</li>
+</ul>
+<b>NVIDIA 가이드 안의 불일치</b>
+<ul>
+<li>활성 파라미터를 한 곳에서 "3B"라고 적었다. 같은 문서의 다른 곳과 모델 카드는 12B, 기술 보고서는 12.7B다.</li>
+<li>권장 최대 토큰이 본문은 64K 이상, 부록은 264K다.</li>
+<li>low_effort 예시에 <code>enable_thinking</code>이 빠졌다. 모델 카드는 둘 다 넣으라고 한다.</li>
+<li>예시 문제(서점 계산 130, 트로피 대명사 등)는 쉬워서 모델 간 변별력이 없다.</li>
+</ul>
+</div>
+
+<h2 id="s5">5. 우리 하네스에 쓸 수 있는 것</h2>
+<p>"모델을 바꾸자"가 아니라 "방법을 가져오자"다. 근거는 모두 원문으로 확인했다. 어디에 넣을지는 우리 구조(코어 / 어댑터 / 프로필) 기준으로 적었다.</p>
+
+<h3>A. v1 설계에 넣을 것</h3>
+<div class="card use">
+<b>A1. 텍스트 도구 호출 복구 파서가 두 형식을 읽게 한다</b> <span class="tag t-ok">확인</span>
+<p>본문으로 샌 도구 호출은 두 가지 형식이 있다.</p>
+<ul>
+<li>GLM 형식: <code>&lt;tool_call&gt;이름&lt;arg_key&gt;키&lt;/arg_key&gt;&lt;arg_value&gt;값&lt;/arg_value&gt;</code></li>
+<li>Qwen3 계열 XML 형식: <code>&lt;tool_call&gt;&lt;function=이름&gt;&lt;parameter=키&gt;값&lt;/parameter&gt;…</code></li>
+</ul>
+<p>Nemotron 3 Super와, 우리가 Mac 개발용으로 고른 Qwen3.5·Qwen3.6이 모두 vLLM에서 <code>qwen3_coder</code> 파서를 쓴다. 둘만 읽으면 사내 GLM과 사외 Mac 모델을 모두 다룰 수 있다.</p>
+<p class="small">넣을 곳: 코어의 프로토콜 복구 계층. 어떤 형식인지는 모델 프로필에 적는다. probe의 <code>txtfmt</code>가 이미 <code>glm</code>/<code>json</code>을 구분한다.</p>
+</div>
+<div class="card use">
+<b>A2. 사고와 본문이 뒤바뀌거나 사고 태그가 비어 있는 응답을 처리한다</b> <span class="tag t-ok">확인</span>
+<ul>
+<li>NVIDIA 가이드: 사고를 켜도 <code>&lt;think&gt;&lt;/think&gt;</code>가 빈 채로 나올 수 있고, 이게 정상이다.</li>
+<li>vLLM 파서: 사고를 끈 상태에서 본문이 비면 사고 칸과 본문 칸을 서로 바꿔 돌려준다.</li>
+</ul>
+<p>그래서 "본문이 비었고 사고 칸에 답이 있음"을 실패로 보지 않고 별도 유형으로 기록해 처리한다. GLM에서도 같은 일이 생길 수 있다.</p>
+<p class="small">넣을 곳: 코어 응답 해석 + 실패 유형 분류표.</p>
+</div>
+<div class="card use">
+<b>A3. 같은 도구를 같은 인자로 반복 호출하면 감지한다</b> <span class="tag t-ok">확인</span>
+<p>NVIDIA는 빈 폴더에서 없는 파일을 고치려는 과제를 학습 데이터에서 일부러 뺐다. 기술 보고서는 그런 상황이 <i>"redundant and exhausted tool invocations"</i>, 즉 쓸데없는 호출을 소진될 때까지 반복하는 상황으로 자주 이어진다고 쓴다.</p>
+<p>큰 모델도 학습으로 막아야 했던 실패라면, 작은 모델에서는 더 자주 나온다고 봐야 한다. 그래서 하네스가 같은 호출의 반복 횟수를 세고, 정해진 횟수를 넘으면 "이미 같은 결과를 받았다"는 안내를 도구 결과 안에 넣거나 중단한다.</p>
+<p class="small">넣을 곳: 코어 루프(예산 규칙과 같은 자리). 반복 상한은 어댑터가 정한다. 실패 카탈로그에 "반복 호출" 태그를 처음부터 둔다.</p>
+</div>
+<div class="card use">
+<b>A4. 사고량은 모델 하나에 하나가 아니라 업무별로 정한다</b> <span class="tag t-part">브레인크루 1회 실측 + 모델 카드</span>
+<p>지시 따르기, 대화, 재정렬, SQL에서는 사고를 줄여도 같거나 더 나았고 15배 빨랐다. 긴 문맥 찾기에서만 사고가 크게 도왔다(0.97 대 0.70).</p>
+<p>GLM-5.3-Flash는 사고를 끌 수 없지만 low/high/max는 고를 수 있다. 그래서 모델 프로필의 사고량 값을 하나로 두지 않고, 어댑터가 업무별 기본값을 요청하고 seed 구간 실측으로 고정한다. 기존 계획("effort를 seed 구간에서 골라 고정")을 업무 단위로 세분하는 것이다.</p>
+<p class="small">넣을 곳: 프로필의 정책 값 + 어댑터 설정.</p>
+</div>
+
+<h3>B. 평가 설계에 넣을 것</h3>
+<div class="card use">
+<b>B1. 변별력 없는 과제를 미리 거른다</b> <span class="tag t-ok">확인</span>
+<p>NVIDIA는 도구 사용 학습 데이터를 고를 때 16번 실행해서 <b>전부 성공하거나 전부 실패한 시나리오를 버렸다</b>. 우리 비교(기본 대 복구 켬 등)에서도 이런 과제는 정보가 없다.</p>
+<p>다만 같은 실행 결과로 거르면 결과가 유리하게 치우친다. 그래서 seed 구간 예비 실행으로만 거르고, 비교 실험 구간과 섞지 않는다.</p>
+<p>브레인크루 NL2SQL처럼 12B 모델과 GPT-5.4가 같은 점수를 받는 과제는 하네스 차이도 보여주지 못한다. 과제 세트를 확정하기 전에 "약한 설정과 강한 설정의 점수가 실제로 갈리는지"를 확인한다.</p>
+</div>
+<div class="card use">
+<b>B2. ERP 합성 자료에 방해 표·열과 다양한 요청 문체를 넣는다</b> <span class="tag t-ok">확인</span>
+<p>NVIDIA의 SQL 학습 데이터(9.65만 건)는 두 가지 장치를 썼다.</p>
+<ul>
+<li><b>방해 요소:</b> 관련은 있지만 쓸모없는 표와 열을 일부러 섞어 실제 업무 DB처럼 지저분하게 만들었다.</li>
+<li><b>요청 문체 3축:</b> 지시 방식(명령, 서술, 질문, 맥락 설명, 축약), 말투(격식, 대화체, 전문, 학술, 직설), 공손도.</li>
+</ul>
+<p>우리 ERP 합성 자료 생성기에 그대로 옮길 수 있다. 예를 들어 "3분기 부서별 미결 전표 합계"를 "3분기 미결 전표 부서별로 좀 뽑아줘", "팀장님이 3분기 미결 건 부서별로 보고 싶어하시는데요"처럼 바꾸고, 비슷한 이름의 표(전표, 전표_백업, 전표_임시)를 섞는다. 브레인크루 결과로 보면 한국어 질문은 영어보다 1~4포인트 낮으므로, 한국어 문체 다양성이 실제 난이도를 만든다.</p>
+<p class="small">넣을 곳: 0'단계 업무 예시 수집 이후의 합성 자료 생성기(ERP 어댑터).</p>
+</div>
+<div class="card use">
+<b>B3. 업무 과제 생성 순서를 NVIDIA의 6단계에서 빌린다</b> <span class="tag t-ok">확인</span>
+<div class="flow">
+<div><b>1. 영역</b>세부 영역으로 넓히기</div>
+<div><b>2. 규칙·도구</b>정책과 도구를 만들고 다듬기</div>
+<div><b>3. 상황</b>요청자, 배경, 요청</div>
+<div><b>4. 실행</b>상황마다 16번</div>
+<div><b>5. 검증</b>결과와 과정을 LLM이 판정</div>
+<div><b>6. 선택</b>전부 성공·전부 실패 제외</div>
+</div>
+<div class="flow ours">
+<div><b>1. ERP 영역</b>구매, 회계, 재고…</div>
+<div><b>2. 업무 규칙·도구</b>사내 예시의 구조로</div>
+<div><b>3. 요청 상황</b>B2의 문체 3축</div>
+<div><b>4. 실행</b>3회 반복</div>
+<div><b>5. 검증</b>정해진 채점 코드 (LLM 채점 안 씀)</div>
+<div><b>6. 선택</b>seed 구간에서 B1 거르기</div>
+</div>
+<p class="small">위: NVIDIA 대화형 도구 사용 데이터 생성 순서. 아래: 우리 ERP 평가 과제에 옮긴 모습. 차이는 5단계다. 우리는 판정을 LLM에 맡기지 않고 정답 비교 코드로 한다. 브레인크루처럼 LLM 채점에 기대면 작은 차이를 믿을 수 없기 때문이다.</p>
+</div>
+
+<h3>C. 나중에 쓸 것</h3>
+<div class="card later">
+<b>C1. LLM 재정렬</b> (3단계 문서 업무 어댑터) <span class="tag t-part">브레인크루 1회 실측</span>
+<p>한국어 문서에서 BM25 다음에 LLM이 20개씩 다시 줄 세우면 NDCG@10이 0.32에서 0.53으로 올랐다. 사고를 줄인 모드로 충분했다. 브레인크루는 형태소 분석기 Kiwi를 썼지만, 우리는 표준 라이브러리만 쓰므로 2글자 단위 색인으로 1차 후보를 뽑는다. 이 조합의 효과는 우리가 다시 재야 한다.</p>
+</div>
+<div class="card later">
+<b>C2. 하네스 쪽 사고 예산</b> (GLM 사고가 너무 길 때의 대안) <span class="tag t-part">방법은 확인, 우리 환경 적용은 미확인</span>
+<p>Nemotron의 예산 기능은 모델이 아니라 호출하는 쪽에서 구현한다.</p>
+<ol>
+<li>사고를 예산 토큰만큼만 받는다.</li>
+<li>받은 사고 끝에 닫는 태그를 붙여 assistant 메시지로 넣고, 이어서 쓰게 해 답을 받는다.</li>
+</ol>
+<p>두 가지가 걸린다.</p>
+<ul>
+<li>사내 게이트웨이가 "이어 쓰기"(<code>continue_final_message</code>)를 허용해야 한다. 담당자에게 물을 수 없으니 probe로 확인해야 한다.</li>
+<li>Nemotron은 잘린 사고로 학습했지만(학습 데이터의 12%), GLM은 그렇지 않아 품질이 떨어질 수 있다.</li>
+</ul>
+<p>effort=low로도 사고가 너무 길 때만 시험한다.</p>
+</div>
+
+<h3>D. 쓰지 않을 것</h3>
+<div class="card no">
+<ul>
+<li><b>검색 전처리(질문 바꾸기·쪼개기·HyDE):</b> 모델 간 차이가 작고(4.32~4.70) 채점도 LLM이 했다. 문서 업무에서도 후순위로 둔다.</li>
+<li><b>단발 상식 퀴즈(세차장 문제 등)로 모델 고르기:</b> 표현과 실행마다 결과가 갈린다. 우리는 업무 과제로 반복 측정한다.</li>
+<li><b>브레인크루 모드 비교를 GLM에 그대로 적용하기:</b> 다른 모델이고 1회 실행이다. 방향 참고로만 쓴다.</li>
+</ul>
+</div>
+
+<h2 id="s6">6. Nemotron 3 Super를 우리 모델로 쓸 수 있나</h2>
+<div class="tablewrap"><table>
+<tr><th>용도</th><th>판단</th><th>이유</th></tr>
+<tr><td>사내 본 모델</td><td>해당 없음</td><td>사내 게이트웨이에 없다. 나중에 들어오면 probe를 그대로 돌리면 된다. 도구 형식(Qwen3 XML)은 A1로 이미 대비된다</td></tr>
+<tr><td>Mac 개발·대역 모델</td><td>권장 안 함</td><td>4비트 64~72GB라 64GB Mac도 빠듯하다. 한국어 공식 미지원. τ² 평균 61.15로 GLM-4.7-Flash 공개값(79.5)보다 낮다(측정 조건이 달라 참고용). 같은 도구 형식은 더 작은 Qwen3.5-9B / Qwen3.6-35B-A3B로 시험할 수 있다</td></tr>
+<tr><td>긴 문서 업무 비교군</td><td>보류</td><td>RULER@1M 91.75로 긴 문맥은 강하다. 사내에 들어오면 3단계 문서 업무에서 비교할 가치가 있다</td></tr>
+</table></div>
+
+<h2 id="s7">7. 출처</h2>
+<ul class="small">
+<li>읽은 자료: Briefing Slide Deck (NVIDIA, 2026-03-04), Reviewer's Guide (NVIDIA), Nvidia-Nemotron-3-Super 모델 알아보기 (브레인크루, 2026-03-25)</li>
+<li><a href="https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Super-Technical-Report.pdf">NVIDIA Nemotron 3 Super Technical Report</a>: 크기, MTP, 에이전트 CLI 데이터, SQL 합성 데이터, 대화형 도구 사용 6단계, low-effort·예산 학습, RL 환경</li>
+<li><a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16">모델 카드 (Hugging Face)</a>: 라이선스, 언어, 점수표, 예산 구현, 샘플링, vLLM 명령</li>
+<li><a href="https://docs.vllm.ai/en/latest/api/vllm/parser/nemotron_v3/">vLLM nemotron_v3 파서 문서</a>: Qwen3 형식, 사고·본문 뒤바꿈</li>
+<li><a href="https://docs.vllm.ai/projects/recipes/en/latest/Qwen/Qwen3.5.html">vLLM Qwen3.5 레시피</a>: <code>qwen3_coder</code> 도구 파서</li>
+<li><a href="https://unsloth.ai/docs/models/nemotron-3/nemotron-3-super">Unsloth 실행 안내</a>: 4비트·8비트 메모리</li>
+<li><a href="https://opper.ai/ai-roundtable/questions/the-car-wash-is-50-meters-away-should-i-walk-or-drive-ae58ae4f">Opper AI Roundtable</a>: 세차장 문제의 다른 실행 결과</li>
+</ul>
+</main>
+</body>
+</html>
