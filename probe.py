@@ -155,6 +155,43 @@ def roundtrip(base):
     return "; ".join(out)
 
 
+SHORT = {"native_ok": "ok", "text_tool_call": "txt", "no_tool_call": "none", "length": "len",
+         "native_bad_json": "badjson", "native_bad_args": "badargs", "native_no_id": "noid",
+         "bad_shape": "shape"}
+
+def short(k):
+    return SHORT.get(k, k.replace("http_", ""))
+
+def summary(rep):
+    c, h = rep["checks"], rep["server"]
+    models = h["models"] if isinstance(h["models"], list) else []
+    names = [n for n, hit in (("litellm", any(k.startswith("x-litellm") for k in h["x_headers"])),
+                              ("vllm", any(m.get("owned_by") == "vllm" for m in models)
+                               or "stop_reason" in h["choice_keys"]),
+                              ("sglang", "matched_stop" in h["choice_keys"])) if hit]
+    ctx = next((m["max_model_len"] for m in models if "max_model_len" in m), "?")
+    rt = rep["roundtrip"]
+    for a, b in ((": http_200 uses_result", "=Y"), (": http_200 NO_RESULT", "=N"), ("; ", " "),
+                 ("keep_reasoning", "keep"), ("drop_reasoning", "drop"), ("user_after_tool", "user")):
+        rt = rt.replace(a, b)
+    rate = " ".join(f"{lang}={v.get('native_ok', 0)}/{sum(v.values())}"
+                    + "".join(f",{short(k)}:{n}" for k, n in v.items() if k != "native_ok")
+                    for lang, v in rep["rate"].items())
+    lat = rep.get("latency_s") or {}
+    sample = rep.get("text_sample", "")
+    fmt = "glm" if "<arg_key>" in sample else "json" if "{" in sample else "other" if sample else "-"
+    burst = [b.split()[0] for b in rep["burst"]]
+    return [
+        "S1 " + " ".join(f"{n}={short(v['kind'])}" for n, v in c.items()),
+        "T1 think auto={} top={} kw={}".format(*(c[n]["think_chars"] for n in ("auto", "effort_top", "effort_kwargs"))),
+        f"SV {'+'.join(names) or '?'} ctx={ctx} models={'ok' if models else 'x'}",
+        "S2 " + rt,
+        f"S3 {rate} txtfmt={fmt} p50={round(lat.get('p50', 0), 1)} p90={round(lat.get('p90', 0), 1)}",
+        "S4 " + " ".join(f"{short(k)}:{burst.count(k)}" for k in sorted(set(burst))),
+        "S5 " + " ".join(f"{k}={v}" for k, v in rep["chars_per_token"].items()),
+        "ER " + next((f"{n}: {v['error']}" for n, v in c.items() if "error" in v), "-"),
+    ]
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=10, help="tool calls per language")
@@ -168,7 +205,11 @@ def main():
         rec = call(name, extra, prompt="Reply with OK." if name == "plain" else ASK["en"])
         if name == "plain":
             report["server"] = server_hints(rec)
-        report["checks"][name] = {"status": rec["status"], "kind": kind(rec), "seconds": rec["seconds"]}
+        think = (message(rec) or {}).get("reasoning_content") or ""
+        report["checks"][name] = {"status": rec["status"], "kind": kind(rec),
+                                  "seconds": rec["seconds"], "think_chars": len(think)}
+        if rec["status"] != 200:
+            report["checks"][name]["error"] = str(rec["response"])[:70].replace("\n", " ")
         print(f"{name:14} {kind(rec):16} {rec['seconds']:6}s  {info(rec)}")
     print("server", json.dumps(report["server"], ensure_ascii=False))
     ok = {n for n, c in report["checks"].items() if c["status"] == 200}
@@ -213,7 +254,11 @@ def main():
             report["chars_per_token"][name] = round((len(text) - 1) / (used - empty), 2)
     print(report["chars_per_token"])
     (OUT / "profile.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    lines = summary(report)
+    (OUT / "summary.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("saved:", OUT.resolve())
+    print("== copy these lines")
+    print("\n".join(lines))
 
 
 if __name__ == "__main__":

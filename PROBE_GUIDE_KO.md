@@ -83,6 +83,8 @@ PowerShell 명령 기록에 키가 남을 수 있어 권장 방법을 우선한�
 
 ## 7. 출력 읽는 법
 
+전달할 때는 9절의 요약 8줄만 옮기면 된다. 이 절은 화면을 직접 읽고 싶을 때 참고한다.
+
 ```
 == 1. options (status, result, details)
 plain          no_tool_call       0.06s  keys=['reasoning_content'] in_tok=8 cached=0 think_chars=11 out_tok=20 think_tok=12
@@ -102,6 +104,8 @@ latency {'p50': ..., 'p90': ..., 'max': ...}
 == 5. token calibration (characters per token)
 {'ko': 1.5, 'en': 4.3, 'json': 3.1}
 saved: C:\Users\...\probe_out\20261020-101500
+== copy these lines
+(요약 8줄. 9절 참고)
 ```
 
 | 결과 | 뜻 |
@@ -149,7 +153,31 @@ saved: C:\Users\...\probe_out\20261020-101500
 
 ## 9. 결과 전달
 
-- 화면의 `== 1.`부터 `saved:` 직전까지 약 25줄을 옮겨 적어 전달한다. 오류 원문은 앞부분만 적어도 된다.
+**맨 끝 `== copy these lines` 아래 8줄만 옮겨 적는다.** 위쪽의 긴 출력은 옮기지 않는다. 같은 내용이 결과 폴더의 `summary.txt`에도 저장된다.
+
+```
+S1 plain=none auto=ok required=ok named=ok strict=400 no_parallel=ok effort_top=ok effort_kwargs=400 thinking_obj=ok
+T1 think auto=1840 top=210 kw=0
+SV vllm ctx=202752 models=ok
+S2 keep=Y drop=Y user=Y
+S3 en=10/10 ko=9/10,txt:1 txtfmt=glm p50=6.2 p90=11.4
+S4 ok:3 429:1
+S5 ko=1.5 en=4.3 json=3.1
+ER strict: {"error":"strict not supported"}
+```
+
+| 줄 | 내용 | 표기 |
+|---|---|---|
+| `S1` | 1단계 옵션 9개의 결과 | `ok`=정상 호출, `txt`=본문으로 샘, `none`=도구 안 씀(`plain`은 이게 정상), `len`=잘림, `400` 같은 숫자=HTTP 상태, `0`=연결 실패 |
+| `T1` | 사고 글자 수: 기본(`auto`) / `effort_top` / `effort_kwargs` | 기본보다 확 작은 쪽이 실제로 먹힌 옵션 |
+| `SV` | 서버 추정, 최대 문맥 길이, 모델 목록 응답 여부 | `?`=판별 못 함, `models=x`=목록 주소 막힘 |
+| `S2` | 도구 결과 왕복: 사고 포함 / 사고 제외 / 뒤에 사용자 메시지 | `Y`=결과를 씀, `N`=안 씀 |
+| `S3` | 언어별 정상 호출 수/시도 수, 그 밖의 결과별 개수, 샌 호출 형식, 지연(초) | `txtfmt`: `glm`=GLM 형식, `json`=JSON 형식, `-`=샌 것 없음 |
+| `S4` | 동시 요청 결과별 개수 | `429`=동시 요청 한도에 걸림 |
+| `S5` | 토큰당 글자 수 | 비어 있으면 서버가 토큰 수를 안 알려줌 |
+| `ER` | 첫 번째 오류 원문 70자 | `-`=오류 없음. 사내 주소가 들어 있으면 지우고 적는다 |
+
+- 숫자 몇 개 틀려도 괜찮다. 판정이 애매하면 그 부분만 다시 물어본다.
 - `probe_out` 폴더는 사내에 보관한다. 요청·응답 원문이 들어 있어 v1의 재생 테스트 자료로 다시 쓴다. 키는 들어 있지 않다. `.gitignore`에 들어 있어 실수로 push되지 않는다.
 
 ## 10. 이 테스트의 판정 기준
