@@ -217,3 +217,33 @@ python3 probe.py --n 3 --burst 2
 
 - 권장 모델과 이유는 `DESIGN_KO.md` 6절 "사외 개발 환경" 참고. GLM 계열과 같은 형식을 보려면 GLM-4.7-Flash를 쓴다.
 - Ollama는 `tool_choice`를 지원하지 않아 `required`/`named`가 200이어도 실제로 강제되지 않을 수 있다.
+
+## 12. 모델 동작 맛보기: behavior.py
+
+probe.py가 "게이트웨이와 형식"을 본다면, behavior.py는 "모델이 일을 어떻게 하는지"를 작은 문제 6종으로 본다. probe.py와 같은 폴더에서, 같은 환경변수로 실행한다. 키는 다시 입력한다.
+
+```powershell
+python behavior.py --rep 3
+```
+
+약 40회 호출, 사고량은 기본 low(`--effort high`로 바꿀 수 있다). 끝나면 `== copy these lines` 아래 6줄만 옮긴다.
+
+```
+B-multi 3/3 calls=2,3,2
+B-recover 2/3 calls=3,3,1
+B-parallel 3/3 par=2,1,2
+B-pick 3/3 first=get_receivable,get_receivable,get_receivable
+B-needle 8000=Y/8120tok/3.1s 32000=N/32400tok/9.8s
+B-json Y,Y,fence
+```
+
+| 줄 | 시험 | 보는 것 |
+|---|---|---|
+| `B-multi` | 가짜 ERP 표 3개(전표, 2023 백업 전표, 부서)에서 "9월 미결 전표 합계가 가장 큰 부서와 금액" 찾기 | 여러 번 도구를 불러 끝까지 가는지. 백업 표에 속지 않는지. 합계를 직접 맞게 더하는지. `calls`=도구 호출 수 |
+| `B-recover` | 틀린 품목코드로 재고 조회 → 오류 메시지 → 검색 후 다시 조회 | 도구 오류를 읽고 스스로 고치는지. 같은 틀린 호출을 반복하는지 |
+| `B-parallel` | "서울이랑 부산 날씨 둘 다" | 한 번에 도구를 2개 부르는지(`par`=한 응답의 최대 호출 수). 1이면 하나씩 부름 |
+| `B-pick` | 도구 20개 중 미수금 조회 도구 고르기 | 도구가 많을 때 맞는 것을 고르는지. `first`=처음 부른 도구 |
+| `B-needle` | 약 8천·3만 2천 토큰 한국어 글 가운데 숨긴 암호명 찾기 | 긴 문맥에서 정보를 놓치는지. `Y/N`, 실제 입력 토큰, 시간 |
+| `B-json` | 전표 3건을 JSON으로만 출력 | 형식 지시를 지키는지. `fence`=코드블록으로 감쌈, `shape`=내용 틀림, `bad`=JSON 아님 |
+
+`err=` 뒤에 `txt`(도구 호출이 본문으로 샘), `max_turns`(8번 안에 못 끝냄), `http_...`가 붙으면 그대로 옮긴다. 이 시험은 맛보기다. 하네스를 켜고 끈 비교는 실제 업무 예시로 2단계에서 한다.
