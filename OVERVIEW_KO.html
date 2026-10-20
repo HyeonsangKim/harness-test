@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>하네스 구조 한눈에</title>
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1f23; --muted: #5d6470; --line: #8a919c;
+  --core: #e8eefc; --core-edge: #3d63c9; --adapt: #e7f6ec; --adapt-edge: #2f8a4c;
+  --prof: #fdf1e2; --prof-edge: #c27a1a; --ext: #f0f0f0; --ext-edge: #7b7f87;
+  --warn: #fdeaea; --warn-edge: #c24141; --done: #2f8a4c; --todo: #9aa0a8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171b; --panel: #1d2026; --ink: #e9ebef; --muted: #a3a9b4; --line: #8d95a1;
+    --core: #1f2a44; --core-edge: #7c9cf0; --adapt: #1c3326; --adapt-edge: #6cc58a;
+    --prof: #3a2c17; --prof-edge: #e3a659; --ext: #2a2d33; --ext-edge: #9aa0a8;
+    --warn: #3d2020; --warn-edge: #e57b7b; --done: #6cc58a; --todo: #6f757e;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15171b; --panel: #1d2026; --ink: #e9ebef; --muted: #a3a9b4; --line: #8d95a1;
+  --core: #1f2a44; --core-edge: #7c9cf0; --adapt: #1c3326; --adapt-edge: #6cc58a;
+  --prof: #3a2c17; --prof-edge: #e3a659; --ext: #2a2d33; --ext-edge: #9aa0a8;
+  --warn: #3d2020; --warn-edge: #e57b7b; --done: #6cc58a; --todo: #6f757e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  line-height: 1.65; font-size: 16px;
+}
+main { max-width: 940px; margin: 0 auto; padding: 32px 16px 80px; }
+h1 { font-size: 28px; margin: 0 0 6px; }
+h2 { font-size: 21px; margin: 48px 0 12px; padding-top: 12px; border-top: 1px solid var(--ext); }
+h3 { font-size: 17px; margin: 24px 0 8px; }
+p, li { color: var(--ink); }
+.sub { color: var(--muted); margin: 0 0 20px; }
+.card { background: var(--panel); border-radius: 12px; padding: 18px 20px; margin: 16px 0; border: 1px solid var(--ext); }
+.tldr { border-left: 5px solid var(--core-edge); }
+.honest { border-left: 5px solid var(--warn-edge); background: var(--warn); }
+.fig { background: var(--panel); border: 1px solid var(--ext); border-radius: 12px; padding: 12px; margin: 16px 0; }
+.fig svg { width: 100%; height: auto; display: block; }
+.cap { color: var(--muted); font-size: 14px; margin: 6px 4px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { border: 1px solid var(--ext); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { background: var(--ext); }
+.tablewrap { overflow-x: auto; }
+.tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px; margin-right: 4px; white-space: nowrap; }
+.t-done { background: var(--adapt); color: var(--done); border: 1px solid var(--adapt-edge); }
+.t-todo { background: var(--ext); color: var(--muted); border: 1px solid var(--ext-edge); }
+.t-open { background: var(--warn); color: var(--warn-edge); border: 1px solid var(--warn-edge); }
+code { background: var(--ext); padding: 1px 5px; border-radius: 4px; font-size: 14px; }
+nav a { color: var(--core-edge); margin-right: 12px; font-size: 14px; white-space: nowrap; }
+/* svg classes */
+.b-core { fill: var(--core); stroke: var(--core-edge); stroke-width: 1.5; }
+.b-adapt { fill: var(--adapt); stroke: var(--adapt-edge); stroke-width: 1.5; }
+.b-prof { fill: var(--prof); stroke: var(--prof-edge); stroke-width: 1.5; }
+.b-ext { fill: var(--ext); stroke: var(--ext-edge); stroke-width: 1.5; }
+.b-warn { fill: var(--warn); stroke: var(--warn-edge); stroke-width: 1.5; }
+.b-frame { fill: none; stroke: var(--core-edge); stroke-width: 2; stroke-dasharray: 6 4; }
+.tx { fill: var(--ink); font-size: 14px; }
+.tx-b { fill: var(--ink); font-size: 15px; font-weight: 700; }
+.tx-s { fill: var(--muted); font-size: 12.5px; }
+.tx-core { fill: var(--core-edge); font-size: 14px; font-weight: 700; }
+.ar { stroke: var(--line); stroke-width: 1.6; fill: none; }
+.ah { fill: var(--line); }
+.grid { display: grid; grid-template-columns: 150px 1fr 1fr; gap: 6px; font-size: 14px; }
+.grid div { padding: 10px; border-radius: 8px; }
+.gh { background: var(--ext); font-weight: 700; }
+.g1 { background: var(--core); border: 1px solid var(--core-edge); }
+.g2 { background: var(--adapt); border: 1px solid var(--adapt-edge); }
+.g3 { background: var(--prof); border: 1px solid var(--prof-edge); }
+@media (max-width: 600px) { .grid { grid-template-columns: 1fr; } .grid .gh:first-child { display: none; } }
+@media (max-width: 720px) {
+  body { font-size: 15px; }
+  .fig { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .fig svg { min-width: 760px; }
+  .fig .cap::before { content: "← 그림은 좌우로 밀어서 보세요 · "; color: var(--core-edge); font-weight: 700; }
+  th, td { padding: 6px 7px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<main>
+<h1>하네스 구조 한눈에</h1>
+<p class="sub">폐쇄망 GLM-5.3-Flash 범용 하네스 · 2026-10-20 기준 · 근거는 REPORT_KO.md, 실행법은 PROBE_GUIDE_KO.md</p>
+<nav>
+  <a href="#core">1. 작은 코어</a><a href="#task">2. 어떤 업무</a><a href="#general">3. 범용성</a>
+  <a href="#context">4. 문맥·기억</a><a href="#done">5. 한 일과 구현 방법</a><a href="#next">6. 다음</a>
+</nav>
+
+<div class="card tldr">
+  <b>요약</b>
+  <ul>
+    <li><b>작은 코어</b>: 모든 업무에 공통인 부분만 담은 실행 엔진. 모델 호출, 응답 해석·복구, 진행, 기록이 들어간다. 업무 지식은 하나도 없다.</li>
+    <li><b>업무는 직군별 묶음 세 개</b>(ERP·사무 데이터, 문서 작업, 개발)로 잡는다. 첫 어댑터는 ERP. 실제 과제는 팀이 가져올 업무 예시로 만든다.</li>
+    <li><b>작은 모델의 짧은 문맥·기억력</b>은 하네스가 기억을 들고 필요한 만큼 보여주는 방식으로 대응한다. v1에는 그 자료 구조만 넣고, 기능은 긴 업무에서 켜고 잰다.</li>
+    <li><b>범용성은 아직 증명되지 않았다.</b> 지금 있는 것은 범용성을 <i>시험할 수 있는 구조</i>와 시험 방법뿐이다.</li>
+    <li><b>지금 구현된 코드는 <code>probe.py</code> 하나</b>(사내 GLM 실측 도구)다. 하네스 본체(v1)는 설계 단계이며, 사외 Mac의 실제 로컬 모델로 검증한 뒤 사내에 옮긴다.</li>
+  </ul>
+</div>
+
+<!-- ============ 1 ============ -->
+<h2 id="core">1. 작은 코어란</h2>
+<p><b>코어</b>는 어떤 업무를 시키든 똑같이 필요한 부분이다. 모델에게 요청을 보내고, 응답에서 "무엇을 하려는지" 읽어내고, 도구를 실행시켜 결과를 돌려주고, 예산을 지키고, 모든 것을 기록한다. <b>"작다"</b>는 것은 여기에 업무 규칙, 특정 모델 전용 처리, 외부 프레임워크가 하나도 들어가지 않는다는 뜻이다.</p>
+
+<div class="fig">
+<svg viewBox="0 0 800 560" role="img" aria-label="하네스 전체 구조: 업무 어댑터, 코어 5층, 모델 프로필과 게이트웨이">
+  <defs><marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+  <!-- adapters -->
+  <text class="tx-b" x="20" y="24">업무 어댑터 — "무슨 일을 시키나" (업무마다 파일 하나)</text>
+  <rect class="b-adapt" x="20" y="38" width="230" height="74" rx="10"/>
+  <text class="tx-b" x="36" y="64">업무 A (예: 표 집계)</text>
+  <text class="tx-s" x="36" y="86">도구 · 과제 · 검사 · 채점 · 예산</text>
+  <rect class="b-adapt" x="285" y="38" width="230" height="74" rx="10"/>
+  <text class="tx-b" x="301" y="64">업무 B (예: 문서 질의)</text>
+  <text class="tx-s" x="301" y="86">도구 · 과제 · 검사 · 채점 · 예산</text>
+  <rect class="b-adapt" x="550" y="38" width="230" height="74" rx="10" stroke-dasharray="5 4"/>
+  <text class="tx-b" x="566" y="64">+ 새 업무</text>
+  <text class="tx-s" x="566" y="86">코어 수정 없이 추가</text>
+  <path class="ar" d="M400,112 L400,150" marker-end="url(#m1)"/>
+  <text class="tx-s" x="410" y="136">같은 규격(구멍 모양)으로 꽂힘</text>
+  <!-- core -->
+  <rect class="b-frame" x="20" y="152" width="760" height="262" rx="14"/>
+  <text class="tx-core" x="36" y="176">코어 — 모든 업무 공통, 업무·모델을 모름</text>
+  <rect class="b-core" x="40" y="188" width="720" height="38" rx="7"/>
+  <text class="tx-b" x="56" y="212">⑤ 기록</text><text class="tx" x="180" y="212">모든 요청·응답·도구 결과를 한 줄씩 저장, 중단 후 재개</text>
+  <rect class="b-core" x="40" y="232" width="720" height="38" rx="7"/>
+  <text class="tx-b" x="56" y="256">④ 루프</text><text class="tx" x="180" y="256">업무 하나를 시작→반복→제출→검사→채점까지 진행, 예산 관리</text>
+  <rect class="b-core" x="40" y="276" width="720" height="38" rx="7"/>
+  <text class="tx-b" x="56" y="300">③ 상태·문맥</text><text class="tx" x="180" y="300">대화 이력, 모델이 실제로 본 자료 보관</text>
+  <rect class="b-core" x="40" y="320" width="720" height="38" rx="7"/>
+  <text class="tx-b" x="56" y="344">② 프로토콜</text><text class="tx" x="180" y="344">응답이 도구 호출인지·답인지·고장인지 판정하고 복구</text>
+  <rect class="b-core" x="40" y="364" width="720" height="38" rx="7"/>
+  <text class="tx-b" x="56" y="388">① 모델 연결</text><text class="tx" x="180" y="388">게이트웨이 통신, 오류 원문 보존, 일시 장애 재시도</text>
+  <!-- bottom -->
+  <path class="ar" d="M200,470 L200,416" marker-end="url(#m1)"/>
+  <text class="tx-s" x="210" y="448">옵션·복구 설정 제공</text>
+  <path class="ar" d="M600,404 L600,470" marker-end="url(#m1)" marker-start="url(#m1)"/>
+  <text class="tx-s" x="610" y="448">요청 / 응답</text>
+  <rect class="b-prof" x="20" y="472" width="360" height="74" rx="10"/>
+  <text class="tx-b" x="36" y="498">모델 프로필 — "누구에게 시키나"</text>
+  <text class="tx-s" x="36" y="520">JSON 설정 파일 · probe.py가 실측으로 채움</text>
+  <text class="tx-s" x="36" y="538">GLM-5.3-Flash용 / 작은 모델용 …</text>
+  <rect class="b-ext" x="420" y="472" width="360" height="74" rx="10"/>
+  <text class="tx-b" x="436" y="498">사내 게이트웨이 → GLM-5.3-Flash</text>
+  <text class="tx-s" x="436" y="520">OpenAI 호환 API (가정, probe로 확인)</text>
+  <text class="tx-s" x="436" y="538">나중에 더 작은 모델로 교체</text>
+</svg>
+<p class="cap">그림 1. 전체 구조. 파란 점선 안이 코어다. 초록(업무)과 주황(모델)은 바꿔 끼우는 부품이다.</p>
+</div>
+
+<h3>코어에 들어가는 것과 들어가지 않는 것</h3>
+<div class="tablewrap"><table>
+<tr><th>코어에 넣는다 (모든 업무 공통)</th><th>코어에 넣지 않는다 (어디로 가나)</th></tr>
+<tr><td>모델 요청·응답 통신, 재시도</td><td>"합계가 맞는지" 같은 업무 규칙 → <b>업무 어댑터</b></td></tr>
+<tr><td>도구 호출 해석, 텍스트로 샌 호출 복구, 미호출 재촉, 반복 감지</td><td>"GLM은 사고량을 이 필드로 보낸다" 같은 모델별 차이 → <b>모델 프로필</b></td></tr>
+<tr><td>호출 수·시간 예산, 제출→검사→수정 기회의 진행 순서</td><td>도구의 실제 동작(파일 읽기, 계산 등) → <b>업무 어댑터</b></td></tr>
+<tr><td>실행 기록 형식, 중단 후 재개, 동시 실행</td><td>외부 프레임워크(LangChain, OpenHands 등) → 쓰지 않음, 설계만 참고</td></tr>
+</table></div>
+
+<h3>왜 작게 만드나</h3>
+<ul>
+  <li><b>사내에 손으로 타이핑해야 한다.</b> 줄 수가 곧 비용이고 오타 위험이다. v1 전체(코어+첫 업무 어댑터) 목표는 약 530~750줄(추정)이다. 표준 라이브러리만 쓴다.</li>
+  <li><b>작아야 검증이 끝까지 된다.</b> 사외에서 가짜 서버로 모든 분기를 시험한 뒤 들여갈 수 있다.</li>
+  <li><b>업계 근거.</b> 최근 하네스들이 "작은 공통 루프 + 바깥 부품" 구조로 수렴하고 있다. mini-SWE-agent는 약 100줄 루프로 높은 성능을 냈다고 밝힌다(모델·날짜 미표기). 복잡한 루프보다 좋은 부품과 좋은 기록이 중요하다는 쪽이다.</li>
+</ul>
+
+<h3>업무 하나가 코어를 지나가는 흐름</h3>
+<div class="fig">
+<svg viewBox="0 0 800 420" role="img" aria-label="업무 하나의 진행 흐름">
+  <defs><marker id="m2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+  <!-- back path -->
+  <path class="ar" d="M690,70 L690,40 L255,40 L255,68" marker-end="url(#m2)" stroke-dasharray="5 4"/>
+  <text class="tx-s" x="330" y="32">검사 실패 → 이유를 알려주고 수정 기회 (최대 2회)</text>
+  <!-- row0 -->
+  <rect class="b-adapt" x="20" y="70" width="130" height="50" rx="9"/><text class="tx-b" x="36" y="100">① 과제 시작</text>
+  <rect class="b-core" x="180" y="70" width="150" height="50" rx="9"/><text class="tx-b" x="200" y="100">② 모델 호출</text>
+  <rect class="b-core" x="380" y="70" width="170" height="50" rx="9"/><text class="tx-b" x="394" y="100">③ 응답 판정·복구</text>
+  <rect class="b-adapt" x="600" y="70" width="180" height="50" rx="9"/><text class="tx-b" x="614" y="100">⑥ 제출 → 실행 중 검사</text>
+  <path class="ar" d="M150,95 L178,95" marker-end="url(#m2)"/>
+  <path class="ar" d="M330,95 L378,95" marker-end="url(#m2)"/>
+  <path class="ar" d="M550,95 L598,95" marker-end="url(#m2)"/><text class="tx-s" x="556" y="86">제출</text>
+  <!-- row1 -->
+  <rect class="b-core" x="180" y="200" width="150" height="50" rx="9"/><text class="tx-b" x="196" y="230">⑤ 결과 돌려줌</text>
+  <rect class="b-adapt" x="380" y="200" width="170" height="50" rx="9"/><text class="tx-b" x="400" y="230">④ 도구 실행</text>
+  <rect class="b-adapt" x="600" y="200" width="180" height="50" rx="9"/><text class="tx-b" x="614" y="230">⑦ 종료 → 사후 채점</text>
+  <path class="ar" d="M465,120 L465,198" marker-end="url(#m2)"/><text class="tx-s" x="473" y="164">도구 호출</text>
+  <path class="ar" d="M380,225 L332,225" marker-end="url(#m2)"/>
+  <path class="ar" d="M255,200 L255,122" marker-end="url(#m2)"/><text class="tx-s" x="263" y="164">반복</text>
+  <path class="ar" d="M690,120 L690,198" marker-end="url(#m2)"/><text class="tx-s" x="698" y="164">통과</text>
+  <!-- note -->
+  <rect class="b-warn" x="20" y="290" width="760" height="112" rx="10"/>
+  <text class="tx-b" x="36" y="316">③ 응답 판정에서 생기는 다섯 경우 (프로토콜층)</text>
+  <text class="tx" x="36" y="342">ㄱ. 정상 도구 호출 → 실행   ㄴ. 본문 텍스트로 샌 호출 → 복구해서 실행 (복구 횟수 기록)</text>
+  <text class="tx" x="36" y="366">ㄷ. 도구를 안 부름 → 1회 재촉   ㄹ. 출력이 잘림 → 인자 오류로 오인하지 않고 따로 처리</text>
+  <text class="tx" x="36" y="390">ㅁ. 같은 호출 반복 · 예산 초과 · 서버 장애 → 이유를 기록하고 종료</text>
+</svg>
+<p class="cap">그림 2. 업무 한 건의 흐름. 파란 칸은 코어가, 초록 칸은 업무 어댑터가 맡는다. 코어는 "무엇을" 검사·채점하는지 모르고, 어댑터에 맡길 "때"만 안다.</p>
+</div>
+<p><b>실행 중 검사(⑥)와 사후 채점(⑦)을 나누는 이유:</b> ⑥은 직원이 결재 올리기 전에 스스로 돌리는 체크리스트라서, 모델이 이미 본 자료만 근거로 쓴다. ⑦은 상사가 정답지를 놓고 하는 평가다. ⑥이 정답을 알면 실력이 아니라 커닝을 재게 되므로 코드 구조로 막는다.</p>
+
+<!-- ============ 2 ============ -->
+<h2 id="task">2. 어떤 업무로 잡았나</h2>
+<p>업무 하나가 아니라 <b>직군별 업무 묶음 세 개</b>로 잡는다. 셋은 구조가 서로 달라서, "개발에 안 쓴 업무에서도 되는가"를 시험하는 데 그대로 쓰인다(3절 범용성 수준 2).</p>
+<div class="tablewrap"><table>
+<tr><th>묶음</th><th>대표 과제 예</th><th>도구</th><th>자동 채점</th><th>성격</th></tr>
+<tr><td><b>ERP·사무 데이터</b></td><td>거래·재고 표에서 조건 조회와 집계, 승인 규칙 적용, 이상 건 찾기</td><td>표 조회(페이지 단위), 필터, 합계, 제출</td><td>정답 ID 집합과 합계</td><td>짧고 정확성 중심. <b>첫 어댑터</b></td></tr>
+<tr><td><b>문서 작업</b></td><td>규정·회의록에서 근거 찾아 답하기, 양식 채우기, 여러 문서 비교</td><td>문서 목록·검색·읽기(페이지 단위), 제출</td><td>정답 조항 ID, 필드 값, 인용 일치</td><td>길고 방해 문서가 많다. 문맥 관리 시험장</td></tr>
+<tr><td><b>개발</b></td><td>로그에서 오류 원인 찾기, 설정 파일 점검, 코드 읽고 질문에 답하기</td><td>파일 목록·읽기·검색(읽기 전용)</td><td>정답 파일·줄·원인</td><td>코드 실행은 보안 검토 뒤로</td></tr>
+</table></div>
+<ul>
+  <li><b>순서:</b> ERP(v1과 함께) → 문서(3단계) → 개발(4단계).</li>
+  <li><b>규모:</b> 묶음마다 20~50과제. 개발용과 평가용을 나누고, 되묻기·거절이 정답인 과제도 섞는다.</li>
+  <li><b>자료:</b> 실제 데이터는 반출할 수 없으니 <b>구조만</b> 받는다(표 열 이름, 문서 형식, 규칙 종류). 사외에서 합성 자료 생성기를 만들고, 사내에서는 생성기 코드만 타이핑한다.</li>
+</ul>
+<div class="card honest">
+  <b>팀이 준비할 것:</b> 직군별 실제 업무 예시를 5~10개씩 모아 주세요. 민감 정보는 지운 형태로, 각 예시에 ① 어떤 지시를 받는지, ② 어떤 자료를 보는지(구조만), ③ 무엇이 정답인지가 있으면 됩니다. 이것이 없으면 과제를 추측으로 만들게 됩니다.
+</div>
+<h3>효과는 켬/끔 비교로만 확인한다</h3>
+<p>probe는 측정이라 비교가 필요 없다. 하지만 <b>하네스 기능이 도움이 되는지는 반드시 비교해야 안다.</b> 같은 모델, 같은 과제, 같은 예산에서 기능만 바꿔 과제별로 짝지어 비교한다. 성공률은 과제 난이도와 모델의 무작위성으로도 흔들리므로, 한쪽만 보면 원인을 알 수 없다.</p>
+<div class="tablewrap"><table>
+<tr><th>구성</th><th>내용</th><th>가려내는 것</th></tr>
+<tr><td>B</td><td>코어 최소(복구 끔)</td><td>기준선</td></tr>
+<tr><td>B+복구</td><td>프로토콜 복구 켬</td><td>복구 계층의 효과</td></tr>
+<tr><td>B+복구+검사(V)</td><td>제출 시 검사와 수정 기회</td><td>검사의 효과</td></tr>
+<tr><td>B+복구+재제출(R)</td><td>V와 같은 횟수만큼 "다시 내라"만</td><td>V의 효과가 검사 내용 덕인지, 단순히 한 번 더 낸 덕인지</td></tr>
+</table></div>
+<p>과제당 3회 반복한다. 성공률 차이, 토큰과 시간, 장치 발동 횟수를 함께 본다. 판정 기준(예: +10%p 이상이면서 토큰 1.5배 이하)은 실행 전에 적어 둔다. 과제 20개로는 몇 %p 수준의 작은 차이를 구분하지 못하므로, 그런 차이는 "차이 없음"으로 본다.</p>
+
+<!-- ============ 3 ============ -->
+<h2 id="general">3. 왜 범용성이 있다고 하나</h2>
+<div class="card honest">
+  <b>정확히 말하면 "범용성이 있다"가 아니라 "범용성을 시험할 수 있게 만든다"이다.</b> 아직 GLM 실측 결과가 하나도 없다. 하네스 본체도 구현되지 않았다. 지금 주장할 수 있는 것은 두 가지뿐이다. 첫째, 구조가 범용성을 <i>가능하게</i> 한다. 둘째, 범용성을 <i>검증하는 방법</i>을 정해 두었다.
+</div>
+<h3>구조가 범용성을 가능하게 하는 이유</h3>
+<ul>
+  <li><b>업무가 바뀌어도 코어는 그대로다.</b> 업무별 차이는 전부 어댑터 안에 있다. 그래서 새 업무를 붙일 때 이미 검증된 복구·기록·예산 기능을 그대로 쓴다.</li>
+  <li><b>모델이 바뀌어도 코드는 그대로다.</b> 모델별 차이는 프로필 파일에 있다. 작은 모델로 바꿀 때 프로필만 교체한다.</li>
+  <li><b>모든 조합이 같은 기준으로 기록된다.</b> 그래서 "이 업무에선 되고 저 업무에선 안 된다"를 공정하게 비교할 수 있다.</li>
+</ul>
+<h3>범용성을 검증하는 방법: 칸 채우기</h3>
+<p>세로는 업무, 가로는 모델이다. 개발할 때 쓴 칸(파랑)에서만 좋으면 범용이 아니다. <b>안 써본 칸(초록·주황)에서도 하네스를 손대지 않은 채 결과가 유지돼야</b> 범용성의 증거가 된다.</p>
+<div class="grid">
+  <div class="gh"></div><div class="gh">GLM-5.3-Flash (개발 모델)</div><div class="gh">더 작은 모델 (안 써본 모델)</div>
+  <div class="gh">업무 A (개발용)</div>
+  <div class="g1"><b>개발 칸</b><br>여기서 하네스를 다듬는다.<br><b>수준 1:</b> 같은 유형의 새 자료로 재확인</div>
+  <div class="g3"><b>수준 3</b><br>모델만 바꾸고 하네스 그대로</div>
+  <div class="gh">업무 B (안 써본 업무)</div>
+  <div class="g2"><b>수준 2</b><br>개발에 안 쓴 업무로 옮기기</div>
+  <div class="g3"><b>수준 2+3</b><br>업무·모델 둘 다 새것</div>
+  <div class="gh">공개 평가 (BFCL 등)</div>
+  <div class="g2"><b>수준 2</b><br>외부 기준과 비교</div>
+  <div class="g3"><b>수준 2+3</b></div>
+</div>
+<p class="cap">그림 3. 범용성 검증표. 각 칸은 "그대로 옮긴 결과"와 "정해진 예산 안에서 손본 결과"를 따로 기록한다. 손본 결과는 범용성이라고 부르지 않는다.</p>
+
+<!-- ============ 4 ============ -->
+<h2 id="context">4. 작은 모델의 짧은 문맥과 기억력</h2>
+<p><b>원칙: 기억은 모델이 아니라 하네스가 든다.</b> 작은 모델은 공칭 문맥보다 훨씬 짧은 범위만 제대로 쓴다.</p>
+<ul>
+  <li>RULER에서 128K 모델 다수는 32K~64K까지만 기준을 넘었다.</li>
+  <li>GLM4-9B는 공칭 1M 중 64K(약 6%)였다.</li>
+  <li>표현이 다른 질문으로 찾게 하면(NoLiMa) Llama-3.1-8B는 약 1K였다.</li>
+  <li>작은 모델이 스스로 쓴 메모로는 거의 나아지지 않았다(Qwen3-4B 14.88%→16.07%). 강한 모델이 써 준 메모로는 크게 올랐다(→49.40%).</li>
+</ul>
+<p>그래서 원문은 하네스가 전부 보관하고, 매 요청 때 필요한 만큼만 골라 보여준다.</p>
+<div class="fig">
+<svg viewBox="0 0 800 230" role="img" aria-label="불변 이력에서 요청을 조립하는 구조">
+  <defs><marker id="m5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+  <rect class="b-core" x="10" y="30" width="230" height="150" rx="10"/>
+  <text class="tx-b" x="26" y="56">불변 이력 (실행 기록)</text>
+  <text class="tx-s" x="26" y="82">주고받은 원문 전부</text>
+  <text class="tx-s" x="26" y="104">도구 결과마다 obs_1 … obs_n</text>
+  <text class="tx-s" x="26" y="126">절대 고치지 않음</text>
+  <text class="tx-s" x="26" y="148">자격 정보는 여기에도 없음</text>
+  <rect class="b-prof" x="285" y="30" width="230" height="150" rx="10"/>
+  <text class="tx-b" x="301" y="56">조립 함수 (하나뿐)</text>
+  <text class="tx-s" x="301" y="82">토큰 예산 계산</text>
+  <text class="tx-s" x="301" y="104">도구별 자르기 방식</text>
+  <text class="tx-s" x="301" y="126">(3단계) 오래된 결과 가리기</text>
+  <text class="tx-s" x="301" y="148">(3단계) 상태 블록 붙이기</text>
+  <rect class="b-adapt" x="560" y="30" width="230" height="150" rx="10"/>
+  <text class="tx-b" x="576" y="56">이번 요청</text>
+  <text class="tx-s" x="576" y="82">시스템 + 도구 정의 (고정)</text>
+  <text class="tx-s" x="576" y="104">최근 N개 결과 원문</text>
+  <text class="tx-s" x="576" y="126">나머지는 "obs_3 다시 읽기"</text>
+  <text class="tx-s" x="576" y="148">안내문은 도구 결과 안에</text>
+  <path class="ar" d="M240,105 L283,105" marker-end="url(#m5)"/>
+  <path class="ar" d="M515,105 L558,105" marker-end="url(#m5)"/>
+  <text class="tx-s" x="10" y="212">원문을 지우지 않으므로 가린 결과도 모델이 다시 읽기 도구로 언제든 되찾을 수 있다. 정책만 바꿔 켬/끔 비교가 가능하다.</text>
+</svg>
+<p class="cap">그림 4. 기억은 하네스가 든다. v1에는 왼쪽 구조와 조립 함수 틀만 넣고, 가리기·상태 블록은 3단계에서 켠다.</p>
+</div>
+<div class="tablewrap"><table>
+<tr><th>언제</th><th>무엇</th><th>왜 그때</th></tr>
+<tr><td><b>v1 (지금)</b></td><td>불변 이력 + 조립 함수 하나, 관찰 ID, 모델이 본 범위 기록, 도구별 자르기 방식(표는 넘치면 거부하고 페이지로 다시 요청), 호출별 토큰 기록(입력·출력·사고·캐시), 프로필의 측정값/정책값 분리, 하위 실행용 run_id, 안내문은 도구 결과 안에, 자격 정보는 문맥 밖</td><td>나중에 바꾸려면 코어를 다시 타이핑해야 하는 자료 구조라서. 약 45~70줄(추정)</td></tr>
+<tr><td><b>3단계</b> (긴 문서 업무)</td><td>오래된 결과 가리기, 상태 블록, 사고 이력 정책, 업무 쪼개기, 모델 메모(항목 추가 방식)</td><td>짧은 업무에서는 발동하지 않아 잴 수 없다. GLM에 16K/32K 예산을 강제로 걸고, 같은 길이의 더미 블록·같은 토큰의 단일 문맥 같은 대조군과 비교한다</td></tr>
+<tr><td><b>5단계</b> (작은 모델)</td><td>probe에 문맥 측정 추가(길이별 4과제) → 유효 문맥을 프로필에, 노출 도구 수 확인, LLM 요약은 최후 수단</td><td>모델마다 유효 문맥이 다르고, 개발사 공개값은 믿을 수 없다</td></tr>
+<tr><td><b>6단계</b> (업무 간 기억)</td><td>GLM·사람이 쓴 플레이북을 작은 모델이 읽기, 도구 오류 때만 보이는 함수 메모, 검사 통과·승인 사례만 저장, JSON + 2글자 색인</td><td>검증된 사례가 쌓여야 한다. 모든 경험을 저장하는 방식이 가장 나빴다. 기억 오염 공격(MINJA 주입 98.2%)도 있다</td></tr>
+</table></div>
+
+<!-- ============ 5 ============ -->
+<h2 id="done">5. 내가 한 일과 구현 방법</h2>
+<div class="tablewrap"><table>
+<tr><th>#</th><th>한 일</th><th>어떻게 했나</th><th>결과물</th></tr>
+<tr><td>1</td><td><span class="tag t-done">완료</span>하네스 최신 기법 조사</td><td>다섯 영역(구조·오픈소스, 작은 모델 도구 호출, 문맥·검증·복구, 자동 최적화, 평가)을 독립 조사자가 동시에 맡았다. 주장마다 확인 수준을 붙였다</td><td>REPORT_KO.md</td></tr>
+<tr><td>2</td><td><span class="tag t-done">완료</span>문맥·기억 기법 조사</td><td>작업 중 문맥 관리, 단계·업무 간 기억, 작은 모델의 실제 유효 문맥과 측정법의 세 갈래를 조사했다</td><td>REPORT_KO.md 근거 6, DESIGN_KO.md 5절</td></tr>
+<tr><td>3</td><td><span class="tag t-done">완료</span>Mac 로컬 모델 조사</td><td>널리 쓰이고 도구 호출이 되는 모델만 메모리 구간별로 추렸다</td><td>DESIGN_KO.md 6절</td></tr>
+<tr><td>4</td><td><span class="tag t-done">완료</span>사실 검증</td><td>작성과 무관한 검토자가 원문과 직접 대조했다. 하네스 기법 61건(틀림 0), 문맥·기억 33건(틀림 1), Mac 모델 36건(틀림 3). 틀리거나 부분적으로 맞는 항목은 모두 고쳤다</td><td>각 문서에 반영</td></tr>
+<tr><td>5</td><td><span class="tag t-done">완료</span>논리·실현성 검토</td><td>별도 검토자가 목표 적합성, 폐쇄망·손타이핑 현실성, 설계 결함을 지적했고 모두 반영했다. 예: v1에는 기능이 아니라 자료 구조만 넣기, 안내문은 도구 결과 안에 넣기, 표는 가운데를 몰래 자르지 않기</td><td>DESIGN_KO.md</td></tr>
+<tr><td>6</td><td><span class="tag t-done">완료</span><code>probe.py</code></td><td>표준 라이브러리만 쓴 192줄, 5단계. 가짜 GLM 서버로 옵션 거부, 텍스트로 샌 호출, 동시 요청 제한, 연결 실패, 키 미기록, 토큰 보정을 시험해 통과했다. <b>실제 GLM에서는 아직 안 돌렸다.</b></td><td>probe.py, PROBE_GUIDE_KO.md</td></tr>
+<tr><td>7</td><td><span class="tag t-todo">미착수</span>하네스 본체 v1</td><td>probe 결과와 업무 예시가 오면 사외에서 구현하고, 가짜 서버와 Mac 로컬 모델로 검증한 뒤 사내에 한 번 타이핑한다</td><td>—</td></tr>
+</table></div>
+
+<h3><code>probe.py</code>는 어떻게 동작하나</h3>
+<p>하네스 본체를 만들기 전에 <b>"우리 게이트웨이의 GLM이 실제로 어떻게 행동하는지"</b>를 재는 도구다. 작은 모델의 도구 호출 실패 연구 상당수는 2B 이하 모델에서 나왔다. 반면 GLM-5.3-Flash는 총 320B·활성 18B의 큰 모델이라, 어떤 복구 기능이 필요할지 미리 알 수 없다. 그래서 먼저 잰다. 결과가 <b>모델 프로필 0판</b>이 된다.</p>
+<div class="fig">
+<svg viewBox="0 0 900 260" role="img" aria-label="probe.py 진행 단계">
+  <defs><marker id="m3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+  <rect class="b-core" x="10" y="20" width="130" height="150" rx="10"/>
+  <text class="tx-b" x="22" y="46">1. 옵션 시험</text>
+  <text class="tx-s" x="22" y="72">9가지 옵션을</text><text class="tx-s" x="22" y="90">하나씩 1회</text>
+  <text class="tx-s" x="22" y="114">거부되면</text><text class="tx-s" x="22" y="132">이유 원문 저장</text>
+  <rect class="b-core" x="160" y="20" width="130" height="150" rx="10"/>
+  <text class="tx-b" x="172" y="46">2. 도구 왕복</text>
+  <text class="tx-s" x="172" y="72">결과(17도)를</text><text class="tx-s" x="172" y="90">돌려주고 재호출</text>
+  <text class="tx-s" x="172" y="114">사고 포함·제외,</text><text class="tx-s" x="172" y="132">뒤에 사용자 글</text>
+  <rect class="b-core" x="310" y="20" width="130" height="150" rx="10"/>
+  <text class="tx-b" x="322" y="46">3. 신뢰도</text>
+  <text class="tx-s" x="322" y="72">영어 10회</text><text class="tx-s" x="322" y="90">한국어 10회</text>
+  <text class="tx-s" x="322" y="114">결과 유형별 개수</text><text class="tx-s" x="322" y="132">지연 p50/p90</text>
+  <rect class="b-core" x="460" y="20" width="130" height="150" rx="10"/>
+  <text class="tx-b" x="472" y="46">4. 동시 요청</text>
+  <text class="tx-s" x="472" y="72">4개를 한꺼번에</text>
+  <text class="tx-s" x="472" y="96">429(요청 과다)</text><text class="tx-s" x="472" y="114">발생 여부</text>
+  <rect class="b-core" x="610" y="20" width="130" height="150" rx="10"/>
+  <text class="tx-b" x="622" y="46">5. 토큰 보정</text>
+  <text class="tx-s" x="622" y="72">한국어·영어·JSON</text>
+  <text class="tx-s" x="622" y="96">글자 수 ÷ 토큰</text><text class="tx-s" x="622" y="114">→ 문맥 예산의</text><text class="tx-s" x="622" y="132">기준값</text>
+  <rect class="b-prof" x="760" y="20" width="130" height="150" rx="10"/>
+  <text class="tx-b" x="772" y="46">profile.json</text>
+  <text class="tx-s" x="772" y="72">모델 프로필 0판</text>
+  <text class="tx-s" x="772" y="96">+ 요청·응답 원문</text><text class="tx-s" x="772" y="114">(나중 재생</text><text class="tx-s" x="772" y="132">테스트 자료)</text>
+  <path class="ar" d="M140,95 L158,95" marker-end="url(#m3)"/>
+  <path class="ar" d="M290,95 L308,95" marker-end="url(#m3)"/>
+  <path class="ar" d="M440,95 L458,95" marker-end="url(#m3)"/>
+  <path class="ar" d="M590,95 L608,95" marker-end="url(#m3)"/>
+  <path class="ar" d="M740,95 L758,95" marker-end="url(#m3)"/>
+  <text class="tx" x="10" y="206">모든 응답은 9가지 중 하나로 판정: 정상 호출 · 인자 깨짐 · 인자 틀림 · id 없음 · 텍스트로 샘 · 미호출 · 잘림 · 구조 이상 · HTTP 오류</text>
+  <text class="tx-s" x="10" y="232">시험용 도구는 일부러 가장 쉬운 "get_weather(city)" 하나만 쓴다. 지능이 아니라 절차가 고장 없이 왕복되는지만 재기 위해서다.</text>
+</svg>
+<p class="cap">그림 5. probe.py의 5단계. 총 약 40회 호출. 응답마다 입력·캐시·사고 토큰도 함께 표시한다.</p>
+</div>
+<p><b>구현에서 신경 쓴 점:</b></p>
+<ul>
+  <li><b>어떤 오류에도 멈추지 않는다.</b> 서버 거부, 연결 실패 모두 그 자리에서 기록하고 다음 시험으로 넘어간다.</li>
+  <li><b>거부 이유 원문을 보존한다.</b> 400이 나도 어떤 옵션이 왜 거부됐는지 알 수 있다.</li>
+  <li><b>판정 순서에 의미가 있다.</b> "잘림"을 먼저 확인한다. 잘린 응답은 인자도 깨져 보이므로, 인자 오류로 잘못 세지 않게 하기 위해서다.</li>
+  <li><b>키는 화면에 안 보이게 입력받는다.</b> 결과 파일에도 남지 않는다(가짜 서버 시험으로 확인).</li>
+  <li><b>사고량 옵션은 자동으로 고른다.</b> 게이트웨이가 받는 방식(최상위 필드 또는 vLLM 방식)을 1단계 결과로 판단해 2~4단계에 적용한다.</li>
+  <li><b>한계:</b> 서버가 옵션을 조용히 무시하는 경우는 자동으로 판정하지 못한다. 그래서 사고량 수치를 비교해 사람이 확인한다. 20회는 방향 결정용이며 통계적 증명이 아니다.</li>
+</ul>
+
+<h3>사내 첫 실행에서 판정하는 것</h3>
+<div class="tablewrap"><table>
+<tr><th>질문</th><th>이렇게 나오면</th><th>다음 행동</th></tr>
+<tr><td>도구 호출이 기본 기능만으로 안정적인가</td><td>언어별 10회 중 거의 전부 "정상 호출"</td><td>복구 기능은 후순위. 구조와 첫 업무에 집중</td></tr>
+<tr><td></td><td>"텍스트로 샘"이 반복</td><td>텍스트 호출 복구를 먼저 구현 (서버 파서 설정도 확인)</td></tr>
+<tr><td></td><td>"미호출"이 반복</td><td>재촉 또는 도구 호출 강제 옵션 사용</td></tr>
+<tr><td></td><td>"잘림"이 반복</td><td>출력 상한 또는 사고량 조정</td></tr>
+<tr><td>어떤 옵션을 받는가</td><td>옵션별 수용/거부</td><td>모델 프로필에 기록</td></tr>
+<tr><td>하네스 안내문을 어디에 넣나</td><td>도구 결과 뒤 사용자 메시지(<code>user_after_tool</code>)가 결과를 쓰는지</td><td>아니면 안내문은 도구 결과 메시지 안에만 넣는다</td></tr>
+<tr><td>한국어가 토큰을 얼마나 쓰나</td><td>글자/토큰 비율</td><td>문맥 예산의 기준값으로 프로필에 기록</td></tr>
+<tr><td>얼마나 빠르고 몇 개까지 동시에 되나</td><td>지연 p50/p90, 429 여부</td><td>실험 규모와 소요 시간 계산</td></tr>
+</table></div>
+
+<!-- ============ 6 ============ -->
+<h2 id="next">6. 다음 순서</h2>
+<div class="fig">
+<svg viewBox="0 0 800 190" role="img" aria-label="실패를 자산으로 바꾸는 순환">
+  <defs><marker id="m4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+  <rect class="b-core" x="10" y="30" width="170" height="60" rx="10"/><text class="tx-b" x="26" y="56">실행·기록</text><text class="tx-s" x="26" y="76">모든 응답 원문 저장</text>
+  <rect class="b-warn" x="215" y="30" width="170" height="60" rx="10"/><text class="tx-b" x="231" y="56">실패 태그 분류</text><text class="tx-s" x="231" y="76">미호출·잘림·오답 …</text>
+  <rect class="b-adapt" x="420" y="30" width="170" height="60" rx="10"/><text class="tx-b" x="436" y="56">회귀 사례 저장</text><text class="tx-s" x="436" y="76">대표 실패를 테스트로</text>
+  <rect class="b-prof" x="625" y="30" width="165" height="60" rx="10"/><text class="tx-b" x="641" y="56">하네스 수정</text><text class="tx-s" x="641" y="76">사례 재생으로 확인</text>
+  <path class="ar" d="M180,60 L213,60" marker-end="url(#m4)"/>
+  <path class="ar" d="M385,60 L418,60" marker-end="url(#m4)"/>
+  <path class="ar" d="M590,60 L623,60" marker-end="url(#m4)"/>
+  <path class="ar" d="M707,90 L707,140 L95,140 L95,92" marker-end="url(#m4)"/>
+  <text class="tx-s" x="250" y="162">반복할수록 "우리 모델이 어디서 왜 실패하는가" 카탈로그가 쌓인다 → 팀 자산</text>
+</svg>
+<p class="cap">그림 6. 실패를 자산으로 바꾸는 순환. v1부터 처음부터 돌린다.</p>
+</div>
+<h3>사외 개발용 Mac 모델</h3>
+<p>v1은 가짜 서버뿐 아니라 Mac의 실제 로컬 모델로도 시험한 뒤 사내에 옮긴다. 같은 모델들이 5단계 "더 작은 모델로 옮기기"에도 쓰인다. 수치는 개발사 공개값을 원문으로 확인한 것이다.</p>
+<div class="tablewrap"><table>
+<tr><th>역할</th><th>모델</th><th>메모리(4비트, 추정)</th><th>이유</th></tr>
+<tr><td>GLM 계열 대역</td><td>GLM-4.7-Flash (30B·활성 3B, MIT)</td><td>32GB급</td><td>운영 모델과 같은 계열, 같은 도구 호출 형식. τ²-Bench 79.5</td></tr>
+<tr><td>하네스 개발 기본</td><td>Qwen3.5-9B / Qwen3.6-35B-A3B</td><td>16GB급 / 32GB급</td><td>BFCL-V4 66.1(9B). 35B-A3B는 M4 Max에서 초당 약 60~110토큰(커뮤니티)</td></tr>
+<tr><td>약한 모델(복구 시험)</td><td>Qwen3.5-4B·2B, Gemma 4 E4B</td><td>8~16GB</td><td>BFCL-V4 50.3 / 43.6. Gemma는 다른 템플릿이라 계열 편향 확인용</td></tr>
+<tr><td>한국어 비교</td><td>Qwen3.5-27B, Kanana-2-30B-A3B</td><td>24GB급 / 32GB급</td><td>Qwen3.5-27B가 EXAONE 4.5보다 한국어 지표가 높다. Kanana는 한국어 특화지만 문맥 32K, 라이선스 조건 있음</td></tr>
+</table></div>
+<p class="cap">서버는 Ollama(가장 쉬움, <code>tool_choice</code> 미지원), llama.cpp(<code>--jinja</code>), mlx-lm 중 하나. 어느 쪽이든 도구 호출이 본문으로 새는 경우가 있어, 텍스트 호출 복구는 작은 모델용으로 필요하다.</p>
+<div class="tablewrap"><table>
+<tr><th>단계</th><th>내용</th><th>상태</th></tr>
+<tr><td>0</td><td>사내에서 probe.py 실행 → 모델 프로필 0판 (Mac 로컬 모델로 미리 연습 가능)</td><td><span class="tag t-open">다음</span></td></tr>
+<tr><td>0'</td><td><b>직군별 업무 예시 5~10개씩 모으기</b></td><td><span class="tag t-open">팀 준비 필요</span></td></tr>
+<tr><td>1</td><td>사외에서 v1: 코어 + 문맥 자료 구조 + ERP 어댑터 + 합성 자료 생성기. 가짜 서버·재생 테스트·Mac 로컬 모델로 검증</td><td><span class="tag t-todo">대기</span></td></tr>
+<tr><td>2</td><td>사내 1회 타이핑. B / B+복구 / +검사 / +재제출 비교, 실패 카탈로그 시작</td><td><span class="tag t-todo">대기</span></td></tr>
+<tr><td>3</td><td>문서 작업 어댑터(긴 업무). 16K/32K 예산을 걸고 가리기·상태 블록·사고 이력·업무 쪼개기 비교 → 범용성 수준 2</td><td><span class="tag t-todo">대기</span></td></tr>
+<tr><td>4</td><td>개발 어댑터, 공개 평가(BFCL 부분집합부터, 반입 승인 필요)</td><td><span class="tag t-todo">대기</span></td></tr>
+<tr><td>5</td><td>작은 모델로 그대로 옮기기, 모델별 유효 문맥 측정 → 범용성 수준 3</td><td><span class="tag t-todo">대기</span></td></tr>
+<tr><td>6</td><td>업무 간 기억(교사 플레이북, 함수 메모), 자동 개선은 필요할 때만</td><td><span class="tag t-todo">대기</span></td></tr>
+</table></div>
+</main>
+</body>
+</html>
