@@ -257,3 +257,19 @@ B-json Y,Y,fence
 | `B-json` | 전표 3건을 JSON으로만 출력 | 형식 지시를 지키는지. `fence`=코드블록으로 감쌈, `shape`=내용 틀림, `bad`=JSON 아님 |
 
 `err=` 뒤에 `txt`(도구 호출이 본문으로 샘), `max_turns`(8번 안에 못 끝냄), `http_...`가 붙으면 그대로 옮긴다. 이 시험은 맛보기다. 하네스를 켜고 끈 비교는 실제 업무 예시로 2단계에서 한다.
+
+## 13. 패키지 설치 가능 여부 확인 (1분)
+
+공개 벤치마크를 사내에서 돌릴 수 있는지 정하는 확인이다. 아무것도 설치하지 않고, 작은 패키지 하나를 임시 폴더에 내려받아만 본다.
+
+```powershell
+python -m pip config list
+python -m pip download requests --no-deps -d $env:TEMP\piptest
+```
+
+| 결과 | 뜻 |
+|---|---|
+| 둘째 줄이 `Saved ...requests-...whl`로 끝남 | 설치 가능(사내 미러가 있거나 외부 PyPI 접근 가능). 첫째 줄에 `index-url`이 보이면 사내 미러 주소 |
+| `Could not find a version` / `ConnectionError` / 시간 초과 | 설치 불가 |
+
+결과 한 줄(가능/불가)과, 보였다면 `index-url`이 사내 주소인지 외부 주소인지만 전달한다. 주소 자체는 적지 않는다.
