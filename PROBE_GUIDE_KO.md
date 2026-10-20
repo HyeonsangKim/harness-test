@@ -21,25 +21,23 @@ uv python find 3.12     # 위 둘 다 안 되면 출력된 python.exe 전체 경
 
 아래는 `python`으로 적었다. 확인 결과에 맞게 바꿔 쓴다. 추가 패키지 설치는 필요 없다(표준 라이브러리만 사용).
 
-## 2. 폴더 만들고 타이핑
+## 2. 코드 받기
 
 ```powershell
-mkdir $env:USERPROFILE\work\glm-probe
-cd $env:USERPROFILE\work\glm-probe
-notepad probe.py
+cd $env:USERPROFILE\work
+git clone https://github.com/HyeonsangKim/harness-test.git
+cd harness-test
 ```
 
-- 들여쓰기는 **스페이스 4칸**. 탭과 섞지 않는다.
-- 저장: 다른 이름으로 저장 → 파일 형식 **모든 파일(*.*)** → 인코딩 **UTF-8**. 메모장이 `probe.py.txt`로 저장하는 함정이 있으니 `dir`로 이름을 확인한다.
-- 25~26줄 한국어 질문은 그대로 친다. 다른 한국어 문장으로 바꿔도 된다.
+이미 받아 두었다면 `git pull`로 최신으로 맞춘다. 추가 패키지 설치는 필요 없다.
 
-## 3. 오타 검사
+## 3. 확인
 
 ```powershell
 python -m py_compile probe.py
 ```
 
-아무 출력이 없으면 통과. `SyntaxError`/`IndentationError ... line N`이 나오면 그 줄 근처를 고친다.
+아무 출력이 없으면 통과.
 
 ## 4. 주소·모델 설정 (이 PowerShell 창에서만 유효)
 
@@ -139,7 +137,7 @@ saved: C:\Users\...\probe_out\20261020-101500
 ## 9. 결과 전달
 
 - 화면의 `== 1.`부터 `saved:` 직전까지 약 20줄을 옮겨 적어 전달한다. 오류 원문은 앞부분만 적어도 된다.
-- `probe_out` 폴더는 사내에 보관한다. 요청·응답 원문이 들어 있어 v1의 재생 테스트 자료로 다시 쓴다. 키는 들어 있지 않다.
+- `probe_out` 폴더는 사내에 보관한다. 요청·응답 원문이 들어 있어 v1의 재생 테스트 자료로 다시 쓴다. 키는 들어 있지 않다. `.gitignore`에 들어 있어 실수로 push되지 않는다.
 
 ## 10. 이 테스트의 판정 기준
 
@@ -156,7 +154,7 @@ saved: C:\Users\...\probe_out\20261020-101500
 
 ## 11. 사외 Mac에서 미리 돌려보기 (선택)
 
-사내에서 타이핑하기 전에 Mac의 로컬 모델로 probe.py를 돌려 보면 사용법과 출력 형식을 미리 익힐 수 있다. 결과는 그 로컬 모델의 성질일 뿐 사내 GLM 결과가 아니다.
+사내에서 돌리기 전에 Mac의 로컬 모델로 probe.py를 돌려 보면 사용법과 출력 형식을 미리 익힐 수 있다. 결과는 그 로컬 모델의 성질일 뿐 사내 GLM 결과가 아니다.
 
 | 서버 | 기본 주소 (`LLM_URL`) |
 |---|---|

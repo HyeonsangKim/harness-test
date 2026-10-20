@@ -163,7 +163,7 @@ nav a { color: var(--core-edge); margin-right: 12px; font-size: 14px; white-spac
 
 <h3>왜 작게 만드나</h3>
 <ul>
-  <li><b>사내에 손으로 타이핑해야 한다.</b> 줄 수가 곧 비용이고 오타 위험이다. v1 전체(코어+첫 업무 어댑터) 목표는 약 530~750줄(추정)이다. 표준 라이브러리만 쓴다.</li>
+  <li><b>사내 결과는 밖으로 가져올 수 없다.</b> 코드는 git clone으로 들어가지만 결과는 화면 요약을 손으로 옮겨 온다. 패키지 설치가 어려울 수 있어 표준 라이브러리만 쓰고 짧게 쓴다. v1 전체(코어+첫 업무 어댑터) 목표는 약 530~750줄(추정)이다.</li>
   <li><b>작아야 검증이 끝까지 된다.</b> 사외에서 가짜 서버로 모든 분기를 시험한 뒤 들여갈 수 있다.</li>
   <li><b>업계 근거.</b> 최근 하네스들이 "작은 공통 루프 + 바깥 부품" 구조로 수렴하고 있다. mini-SWE-agent는 약 100줄 루프로 높은 성능을 냈다고 밝힌다(모델·날짜 미표기). 복잡한 루프보다 좋은 부품과 좋은 기록이 중요하다는 쪽이다.</li>
 </ul>
@@ -214,7 +214,7 @@ nav a { color: var(--core-edge); margin-right: 12px; font-size: 14px; white-spac
 <ul>
   <li><b>순서:</b> ERP(v1과 함께) → 문서(3단계) → 개발(4단계).</li>
   <li><b>규모:</b> 묶음마다 20~50과제. 개발용과 평가용을 나누고, 되묻기·거절이 정답인 과제도 섞는다.</li>
-  <li><b>자료:</b> 실제 데이터는 반출할 수 없으니 <b>구조만</b> 받는다(표 열 이름, 문서 형식, 규칙 종류). 사외에서 합성 자료 생성기를 만들고, 사내에서는 생성기 코드만 타이핑한다.</li>
+  <li><b>자료:</b> 실제 데이터는 반출할 수 없으니 <b>구조만</b> 받는다(표 열 이름, 문서 형식, 규칙 종류). 사외에서 합성 자료 생성기를 만들고, 사내에서는 생성기를 실행해 같은 자료를 만든다.</li>
 </ul>
 <div class="card honest">
   <b>팀이 준비할 것:</b> 직군별 실제 업무 예시를 5~10개씩 모아 주세요. 민감 정보는 지운 형태로, 각 예시에 ① 어떤 지시를 받는지, ② 어떤 자료를 보는지(구조만), ③ 무엇이 정답인지가 있으면 됩니다. 이것이 없으면 과제를 추측으로 만들게 됩니다.
@@ -296,7 +296,7 @@ nav a { color: var(--core-edge); margin-right: 12px; font-size: 14px; white-spac
 </div>
 <div class="tablewrap"><table>
 <tr><th>언제</th><th>무엇</th><th>왜 그때</th></tr>
-<tr><td><b>v1 (지금)</b></td><td>불변 이력 + 조립 함수 하나, 관찰 ID, 모델이 본 범위 기록, 도구별 자르기 방식(표는 넘치면 거부하고 페이지로 다시 요청), 호출별 토큰 기록(입력·출력·사고·캐시), 프로필의 측정값/정책값 분리, 하위 실행용 run_id, 안내문은 도구 결과 안에, 자격 정보는 문맥 밖</td><td>나중에 바꾸려면 코어를 다시 타이핑해야 하는 자료 구조라서. 약 45~70줄(추정)</td></tr>
+<tr><td><b>v1 (지금)</b></td><td>불변 이력 + 조립 함수 하나, 관찰 ID, 모델이 본 범위 기록, 도구별 자르기 방식(표는 넘치면 거부하고 페이지로 다시 요청), 호출별 토큰 기록(입력·출력·사고·캐시), 프로필의 측정값/정책값 분리, 하위 실행용 run_id, 안내문은 도구 결과 안에, 자격 정보는 문맥 밖</td><td>나중에 바꾸면 코어와 쌓인 기록을 함께 고쳐야 하는 자료 구조라서. 약 45~70줄(추정)</td></tr>
 <tr><td><b>3단계</b> (긴 문서 업무)</td><td>오래된 결과 가리기, 상태 블록, 사고 이력 정책, 업무 쪼개기, 모델 메모(항목 추가 방식)</td><td>짧은 업무에서는 발동하지 않아 잴 수 없다. GLM에 16K/32K 예산을 강제로 걸고, 같은 길이의 더미 블록·같은 토큰의 단일 문맥 같은 대조군과 비교한다</td></tr>
 <tr><td><b>5단계</b> (작은 모델)</td><td>probe에 문맥 측정 추가(길이별 4과제) → 유효 문맥을 프로필에, 노출 도구 수 확인, LLM 요약은 최후 수단</td><td>모델마다 유효 문맥이 다르고, 개발사 공개값은 믿을 수 없다</td></tr>
 <tr><td><b>6단계</b> (업무 간 기억)</td><td>GLM·사람이 쓴 플레이북을 작은 모델이 읽기, 도구 오류 때만 보이는 함수 메모, 검사 통과·승인 사례만 저장, JSON + 2글자 색인</td><td>검증된 사례가 쌓여야 한다. 모든 경험을 저장하는 방식이 가장 나빴다. 기억 오염 공격(MINJA 주입 98.2%)도 있다</td></tr>
@@ -310,9 +310,9 @@ nav a { color: var(--core-edge); margin-right: 12px; font-size: 14px; white-spac
 <tr><td>2</td><td><span class="tag t-done">완료</span>문맥·기억 기법 조사</td><td>작업 중 문맥 관리, 단계·업무 간 기억, 작은 모델의 실제 유효 문맥과 측정법의 세 갈래를 조사했다</td><td>REPORT_KO.md 근거 6, DESIGN_KO.md 5절</td></tr>
 <tr><td>3</td><td><span class="tag t-done">완료</span>Mac 로컬 모델 조사</td><td>널리 쓰이고 도구 호출이 되는 모델만 메모리 구간별로 추렸다</td><td>DESIGN_KO.md 6절</td></tr>
 <tr><td>4</td><td><span class="tag t-done">완료</span>사실 검증</td><td>작성과 무관한 검토자가 원문과 직접 대조했다. 하네스 기법 61건(틀림 0), 문맥·기억 33건(틀림 1), Mac 모델 36건(틀림 3). 틀리거나 부분적으로 맞는 항목은 모두 고쳤다</td><td>각 문서에 반영</td></tr>
-<tr><td>5</td><td><span class="tag t-done">완료</span>논리·실현성 검토</td><td>별도 검토자가 목표 적합성, 폐쇄망·손타이핑 현실성, 설계 결함을 지적했고 모두 반영했다. 예: v1에는 기능이 아니라 자료 구조만 넣기, 안내문은 도구 결과 안에 넣기, 표는 가운데를 몰래 자르지 않기</td><td>DESIGN_KO.md</td></tr>
+<tr><td>5</td><td><span class="tag t-done">완료</span>논리·실현성 검토</td><td>별도 검토자가 목표 적합성, 폐쇄망 현실성, 설계 결함을 지적했고 모두 반영했다. 예: v1에는 기능이 아니라 자료 구조만 넣기, 안내문은 도구 결과 안에 넣기, 표는 가운데를 몰래 자르지 않기</td><td>DESIGN_KO.md</td></tr>
 <tr><td>6</td><td><span class="tag t-done">완료</span><code>probe.py</code></td><td>표준 라이브러리만 쓴 192줄, 5단계. 가짜 GLM 서버로 옵션 거부, 텍스트로 샌 호출, 동시 요청 제한, 연결 실패, 키 미기록, 토큰 보정을 시험해 통과했다. <b>실제 GLM에서는 아직 안 돌렸다.</b></td><td>probe.py, PROBE_GUIDE_KO.md</td></tr>
-<tr><td>7</td><td><span class="tag t-todo">미착수</span>하네스 본체 v1</td><td>probe 결과와 업무 예시가 오면 사외에서 구현하고, 가짜 서버와 Mac 로컬 모델로 검증한 뒤 사내에 한 번 타이핑한다</td><td>—</td></tr>
+<tr><td>7</td><td><span class="tag t-todo">미착수</span>하네스 본체 v1</td><td>probe 결과와 업무 예시가 오면 사외에서 구현하고, 가짜 서버와 Mac 로컬 모델로 검증한 뒤 push한다</td><td>—</td></tr>
 </table></div>
 
 <h3><code>probe.py</code>는 어떻게 동작하나</h3>
@@ -409,7 +409,7 @@ nav a { color: var(--core-edge); margin-right: 12px; font-size: 14px; white-spac
 <tr><td>0</td><td>사내에서 probe.py 실행 → 모델 프로필 0판 (Mac 로컬 모델로 미리 연습 가능)</td><td><span class="tag t-open">다음</span></td></tr>
 <tr><td>0'</td><td><b>직군별 업무 예시 5~10개씩 모으기</b></td><td><span class="tag t-open">팀 준비 필요</span></td></tr>
 <tr><td>1</td><td>사외에서 v1: 코어 + 문맥 자료 구조 + ERP 어댑터 + 합성 자료 생성기. 가짜 서버·재생 테스트·Mac 로컬 모델로 검증</td><td><span class="tag t-todo">대기</span></td></tr>
-<tr><td>2</td><td>사내 1회 타이핑. B / B+복구 / +검사 / +재제출 비교, 실패 카탈로그 시작</td><td><span class="tag t-todo">대기</span></td></tr>
+<tr><td>2</td><td>사내 실행. B / B+복구 / +검사 / +재제출 비교, 실패 카탈로그 시작</td><td><span class="tag t-todo">대기</span></td></tr>
 <tr><td>3</td><td>문서 작업 어댑터(긴 업무). 16K/32K 예산을 걸고 가리기·상태 블록·사고 이력·업무 쪼개기 비교 → 범용성 수준 2</td><td><span class="tag t-todo">대기</span></td></tr>
 <tr><td>4</td><td>개발 어댑터, 공개 평가(BFCL 부분집합부터, 반입 승인 필요)</td><td><span class="tag t-todo">대기</span></td></tr>
 <tr><td>5</td><td>작은 모델로 그대로 옮기기, 모델별 유효 문맥 측정 → 범용성 수준 3</td><td><span class="tag t-todo">대기</span></td></tr>
