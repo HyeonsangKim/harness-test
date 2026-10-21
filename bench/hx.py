@@ -227,8 +227,11 @@ class Client:
             if len(text) - written >= 500:      # check now and then, not on every token
                 written = len(text)
                 args = "".join(c["function"]["arguments"] for c in calls.values())
-                # a program that is mostly comments weighing readings ("But wait, ...") does not converge
-                if self._looping(text) or len(re.findall(r"\\n\s*#", args)) > 40:
+                # a long program that is mostly comments weighing readings ("But wait, ...") does not converge;
+                # normal programs, even well-commented ones, stay far below 8000 characters
+                lines = args.count("\\n") + 1
+                comments = len(re.findall(r"\\n\s*#", args))
+                if self._looping(text) or (len(args) > 8000 and comments > 0.5 * lines):
                     finish = "loop"
                     break
         msg = {"role": "assistant", "content": "".join(content) or None}
