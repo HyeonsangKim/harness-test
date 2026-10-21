@@ -60,8 +60,8 @@
 | 파일 | 해시 |
 |---|---|
 | `tasks.py` | `dac11c4505b0c57d` |
-| `hx.py` | `4542df86cb6ab400` |
-| `env.py` | `44982a8819b06e32` |
+| `hx.py` | `eb0f604249bd6c18` |
+| `env.py` | `cc09c7a29c7a90b5` |
 | `grade.py` | `2fefd89fb6d94d1b` |
 | `ab.py` | `ce476fb50be518f3` |
 | `skills/erp.md` | `b1b0fafc0524da7d` |
@@ -73,6 +73,9 @@
 | `skills/python_v2.md` | `7fdcce33c338d3ed` |
 | `skills/python_v3.md` | `80dabc9952d1687e` |
 | `skills/python_v3b.md` | `9bf57a44ca61a42d` |
+| `tasks_bench.py` | `583994a45994d7b6` |
+| `ext/tatqa_dev.json` | `7ccea93f242ba6af` |
+| `ext/gsmhard.jsonl` | `2032b0188a49ac0e` |
 | `bfcl_ab.py` | `6d8bc4c43064570d` |
 | `tasks_gen.py` | `69cf43b5570d9461` |
 
@@ -296,3 +299,24 @@
 - 반복: 1회. `LLM_MAX_TOKENS=8192`.
 - 판정 기준: 위와 같다(RT − P 하한 > 0).
 - 사고를 켠 P가 기준이 되므로, Qwen의 "사고 끔 P"보다 엄격한 비교다.
+
+## 공개 벤치마크 등록: TAT-QA + GSM-Hard (실행 전)
+
+- **데이터:**
+  - TAT-QA dev(`next-tat/TAT-QA`, CC-BY-4.0)의 계산형 질문 706개 중 100개.
+  - GSM-Hard(`reasoning-machines/gsm-hard`, MIT) 1,319개 중 100개.
+  - 둘 다 시드 0으로 고른다. 파일 해시는 위 표에 있다. 데이터는 `bench/ext/`에 두고 커밋하지 않는다.
+- **채점:**
+  - TAT-QA는 공식 평가 코드(`tatqa_metric.py`의 `TaTQAEmAndF1`, MIT)로 EM을 계산한다. 모델은 `{"answer": 숫자, "scale": 단위}`로 답한다.
+  - GSM-Hard는 정답과의 차이가 max(0.01, |정답| × 1e-6) 이하이면 정답이다.
+  - 정답 예시는 둘 다 100/100 통과하고, 오답은 걸러진다.
+- **조건:** P(사고 끔), PT(사고 켬, Qwen 공식 사고 모드 권장값, `max_tokens` 16000), RT(최종 하네스). 각 1회.
+- **질문과 판정:**
+  1. RT − P 하한 > 0이면 "하네스가 사고 끔보다 정확하다".
+  2. RT와 PT는 정확도 차이와 토큰·시간 비율을 그대로 보고한다. 기대 방향은 정하지 않는다.
+- **표 추출 규칙 변경 (결과 보기 전):** 첫 줄 왼쪽이 빈 칸인 표(재무표, 엑셀 피벗)를 놓치는 결함을 고쳤다.
+  - 이름 있는 칸이 2개 이상이고, 각 40자 이하이면 표로 본다.
+  - 줄 앞뒤 구분자를 지우지 않는다.
+  - 기존 과제 묶음의 표 18개는 그대로 찾는다.
+  - TAT-QA 100문항 중 표를 자동으로 잡은 것은 67개다. 벤치마크에 맞춰 규칙을 더 고치지 않는다.
+- **환경:** 사외 Mac, 서버 설정은 위와 같다. TAT-QA 공식 채점이 numpy·pandas·scipy를 쓰므로, 실행기는 그것들이 설치된 별도 가상환경의 파이썬으로 돌린다. 하네스 코드는 그대로 표준 라이브러리만 쓴다.

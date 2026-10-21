@@ -267,13 +267,14 @@ def extract_tables(text, min_rows=3):
         for line in lines + [""]:
             n = line.count(d)
             if n >= 2 and (not run or run[0].count(d) == n):
-                run.append(line.strip())
+                run.append(line.strip(" \r"))       # keep leading/trailing delimiters (empty first cell)
                 continue
-            header = run[0].strip(d).split(d) if run else []
-            ok = header and all(0 < len(c.strip()) <= 20 and not re.search(r"\d,\d{3}|:", c) for c in header)
+            header = [c.strip() for c in run[0].strip(d).split(d)] if run else []
+            named = [c for c in header if c]          # an empty top-left cell is common in report tables
+            ok = len(named) >= 2 and all(len(c) <= 40 and not re.search(r"\d,\d{3}|:", c) for c in named)
             if len(run) >= min_rows and ok:
                 found.append((d, run))
-            run = [line.strip()] if n >= 2 else []
+            run = [line.strip(" \r")] if n >= 2 else []
     return found
 
 
