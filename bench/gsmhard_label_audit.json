@@ -1,0 +1,323 @@
+[
+ {
+  "id": "gsmh_0788",
+  "my_answer": 72,
+  "target": 72.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0861",
+  "my_answer": 25885044402075,
+  "target": 44061075.0,
+  "verdict": "label_wrong",
+  "reason": "Code uses 5 pens per pack instead of 2937405."
+ },
+ {
+  "id": "gsmh_0082",
+  "my_answer": 51318000,
+  "target": 51318000.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0530",
+  "my_answer": 1.9576587771386565e-05,
+  "target": 1.95766e-05,
+  "verdict": "ok",
+  "reason": "ok on literal arithmetic (fractional pack; realistic answer 1 pack)."
+ },
+ {
+  "id": "gsmh_1047",
+  "my_answer": 2.026568082385847e-06,
+  "target": 8882014.0,
+  "verdict": "label_wrong",
+  "reason": "Code is nonsensical (returns Ruby's multiplier); correct S=18/(8882014-3)."
+ },
+ {
+  "id": "gsmh_0995",
+  "my_answer": 34825410019224.0,
+  "target": 28910376.0,
+  "verdict": "label_wrong",
+  "reason": "Code uses 4 weeks instead of 4818396 weeks."
+ },
+ {
+  "id": "gsmh_0829",
+  "my_answer": 50.0,
+  "target": 50.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0621",
+  "my_answer": 243759741,
+  "target": -27084279.0,
+  "verdict": "label_wrong",
+  "reason": "Code uses green basket price $25 instead of $90281365."
+ },
+ {
+  "id": "gsmh_0976",
+  "my_answer": 20,
+  "target": 20.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0733",
+  "my_answer": 826.0,
+  "target": 826.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_1194",
+  "my_answer": 94,
+  "target": 94.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0447",
+  "my_answer": 72768591.0,
+  "target": 72768591.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_1033",
+  "my_answer": 75,
+  "target": 75.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0285",
+  "my_answer": 32.0,
+  "target": 32.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0577",
+  "my_answer": 33979075.0,
+  "target": 33979075.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0286",
+  "my_answer": 19462.0,
+  "target": 19462.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0194",
+  "my_answer": 9500.0,
+  "target": 9500.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_1266",
+  "my_answer": 9202335.0,
+  "target": 9202335.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0513",
+  "my_answer": 3000.0,
+  "target": 3000.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_1090",
+  "my_answer": -13835691972407,
+  "target": 44635753.0,
+  "verdict": "label_wrong",
+  "reason": "Code uses 3 fewer cougars instead of 3719643 (question itself yields negative cougars)."
+ },
+ {
+  "id": "gsmh_1232",
+  "my_answer": 1345.567,
+  "target": 1345.567,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0300",
+  "my_answer": 18034136.0,
+  "target": 18034136.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0635",
+  "my_answer": 2040087.3384615383,
+  "target": 2040087.3384615383,
+  "verdict": "ok",
+  "reason": "ok; non-integer pieces."
+ },
+ {
+  "id": "gsmh_0202",
+  "my_answer": 12469088.666666666,
+  "target": 12469088.666666666,
+  "verdict": "ok",
+  "reason": "ok; non-integer lines."
+ },
+ {
+  "id": "gsmh_0151",
+  "my_answer": 126647407,
+  "target": 126647407.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0676",
+  "my_answer": 1393196.3333333333,
+  "target": 2836101.0,
+  "verdict": "label_wrong",
+  "reason": "Code sets cats=149269 and fish=3x rabbits; question has 3 cats and fish=149269x rabbits."
+ },
+ {
+  "id": "gsmh_0966",
+  "my_answer": 1615657115893500,
+  "target": 1600.0,
+  "verdict": "label_wrong",
+  "reason": "Code uses $24 budget and 400 sticks per 2x8 instead of $24033511 and 403351100."
+ },
+ {
+  "id": "gsmh_1146",
+  "my_answer": 14332909.333333334,
+  "target": 14332909.333333334,
+  "verdict": "ok",
+  "reason": "ok; question gives non-integer animal counts."
+ },
+ {
+  "id": "gsmh_0206",
+  "my_answer": 146508066632045.0,
+  "target": 142137795.0,
+  "verdict": "label_wrong",
+  "reason": "Code uses 12 team members instead of 12368962."
+ },
+ {
+  "id": "gsmh_0724",
+  "my_answer": 52,
+  "target": 52.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0889",
+  "my_answer": 12274570.666666666,
+  "target": 12274570.666666666,
+  "verdict": "ok",
+  "reason": "ok; non-integer novels."
+ },
+ {
+  "id": "gsmh_0647",
+  "my_answer": 12337724,
+  "target": 9253418.0,
+  "verdict": "label_wrong",
+  "reason": "Code uses 125 chimichangas on Tuesday instead of 3084431."
+ },
+ {
+  "id": "gsmh_1251",
+  "my_answer": 6032417,
+  "target": 6032417.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_1311",
+  "my_answer": 291297460,
+  "target": 9397001.0,
+  "verdict": "label_wrong",
+  "reason": "Code uses 100 email invites instead of 93966920 (also counts Alex herself, +1)."
+ },
+ {
+  "id": "gsmh_0418",
+  "my_answer": 1054939260840498,
+  "target": 7165593864.0,
+  "verdict": "label_wrong",
+  "reason": "Code uses carpet $12/sqft instead of $7655549."
+ },
+ {
+  "id": "gsmh_1131",
+  "my_answer": 4364332,
+  "target": 4364332.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0906",
+  "my_answer": 4.115858355204221e-06,
+  "target": 4.1159e-06,
+  "verdict": "ok",
+  "reason": "ok on literal arithmetic (fractional day; realistic answer 1 day)."
+ },
+ {
+  "id": "gsmh_1067",
+  "my_answer": 42,
+  "target": 42.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0533",
+  "my_answer": 17,
+  "target": 17.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0127",
+  "my_answer": 96754437,
+  "target": 96754437.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_1123",
+  "my_answer": 3158933.2727272725,
+  "target": 3158933.272727273,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0028",
+  "my_answer": 21127776,
+  "target": 21127776.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0191",
+  "my_answer": 7216298621460,
+  "target": 42474420.0,
+  "verdict": "label_wrong",
+  "reason": "Code uses 50 marbles per box instead of 8494880."
+ },
+ {
+  "id": "gsmh_0816",
+  "my_answer": 25.0,
+  "target": 12.5000870806,
+  "verdict": "label_wrong",
+  "reason": "Code uses box weight 8 oz instead of 1148362 (literal fractional boxes=25 lb; whole box=71785.125 lb)."
+ },
+ {
+  "id": "gsmh_1280",
+  "my_answer": 218769,
+  "target": 218769.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0002",
+  "my_answer": 193066335253500,
+  "target": 322886700.0,
+  "verdict": "label_wrong",
+  "reason": "Code uses 3 days a week instead of 1793815."
+ },
+ {
+  "id": "gsmh_1253",
+  "my_answer": 154800.16666666666,
+  "target": 96.0,
+  "verdict": "label_wrong",
+  "reason": "Code hard-codes 20 strawberry cubes ignoring total 185761; correct value is non-integer."
+ },
+ {
+  "id": "gsmh_1010",
+  "my_answer": 25,
+  "target": 25.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0682",
+  "my_answer": 60,
+  "target": 60.0,
+  "verdict": "ok"
+ },
+ {
+  "id": "gsmh_0499",
+  "my_answer": 100,
+  "target": 100.0,
+  "verdict": "ok"
+ }
+]
