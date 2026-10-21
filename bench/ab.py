@@ -26,7 +26,7 @@ import importlib
 def features_of(cond):
     if cond in ("B", "C", "P", "PT", "V", "R"):
         return ()
-    if cond in ("RH", "HS", "RS"):          # RH: run_python + harness; HS/RS: the same plus a skill file
+    if cond in ("RH", "HS", "RS", "RF"):    # RH: run_python + harness; HS/RS: + skill; RF: + data as a file
         return hx.FEATURES
     if cond in ("H1", "RH1"):               # harness v1 (stall note instead of repeat block)
         return hx.FEATURES_V1
@@ -43,7 +43,10 @@ def run_one(client, task, cond, rep, out):
     tag = f"{task['id']}__{cond}__{rep}"
     ws, verify = None, None
     if task["tools"] == "none":
-        tools = env.python_tool(out / "ws" / tag) if cond in ("R", "RH", "RS") else {}
+        if cond == "RF":
+            tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"])
+        else:
+            tools = env.python_tool(out / "ws" / tag) if cond in ("R", "RH", "RS") else {}
     elif task["tools"] == "erp":
         tools = env.ERP_TOOLS
     elif task["tools"] == "doc":

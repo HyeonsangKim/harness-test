@@ -255,13 +255,15 @@ def doc_tools(docs):
 
 # ---------------------------------------------------------------- one general tool: run Python
 
-def python_tool(workdir):
+def python_tool(workdir, input_text=None):
     """A single general-purpose action for tasks without domain tools.
     Runs a standard-library Python program in its own folder with a 20 s limit, no inherited
     environment variables (so no keys), isolated mode (-I). This prevents accidents; it is not a security sandbox."""
     root = Path(workdir)
     root.mkdir(parents=True, exist_ok=True)
     counter = {"n": 0}
+    if input_text is not None:   # the user's message, so the model reads data instead of retyping it
+        (root / "input.txt").write_text(input_text, encoding="utf-8")
     keep = {k: os.environ[k] for k in ("PATH", "SYSTEMROOT", "TEMP", "TMP") if k in os.environ}
 
     def run_python(code):
@@ -275,6 +277,11 @@ def python_tool(workdir):
         except subprocess.TimeoutExpired:
             return {"exit_code": -1, "stdout": "", "stderr": "timeout after 20s"}
 
-    return {"run_python": (spec("run_python", "Run a Python 3 program (standard library only) and return its exit code, "
-                                "stdout and stderr. Use print() to show results. Each call starts fresh.",
+    desc = ("Run a Python 3 program (standard library only) and return its exit code, "
+            "stdout and stderr. Use print() to show results. Each call starts fresh.")
+    if input_text is not None:
+        desc += (" The user's whole message, including any pasted data, is saved as the file input.txt in the "
+                 "working directory: read it with open('input.txt', encoding='utf-8').read() instead of "
+                 "copying the data into your code.")
+    return {"run_python": (spec("run_python", desc,
                                 {"code": STR}, ["code"]), run_python)}
