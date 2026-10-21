@@ -224,9 +224,10 @@ def cmd_report(a):
                      f"{statistics.mean(r['turns'] for r in rs):6.1f} {statistics.mean(r['seconds'] for r in rs):6.1f} "
                      f"{sum(1 for r in rs if r['error']):7}")
     lines.append("")
+    order = ("B", "P", "C", "H", "R", "RH")    # each condition is compared with every earlier base present
     for b in conds:
-        for base in ("B", "C"):
-            if b == base or base not in conds or (base == "C" and b in ("B",)):
+        for base in order:
+            if b == base or base not in conds or (b in order and order.index(b) <= order.index(base)):
                 continue
             p = paired(rows, base, b)
             if p:

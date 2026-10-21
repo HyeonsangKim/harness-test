@@ -23,6 +23,13 @@ uv run --offline --no-project --python 3.12 ab.py run --out runs\glm-eval --spli
 - 429가 나왔으면 다음처럼 한다.
   1. 결과의 `error` 줄에 적힌 거절 사유를 옮긴다.
   2. `$env:LLM_GAP = "6"`을 설정하고 같은 명령을 다시 실행한다. 한도에 막혀 실패한 실행만 다시 돈다.
+- **GLM 결과가 이미 나왔으면 다음 두 시험을 이어서 돌린다** (15절):
+
+  ```powershell
+  uv run --offline --no-project --python 3.12 ab.py run --out runs\glm-eval --split eval --conds HS --rep 1 --workers 2
+  uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool --out runs\glm-notool --split notool --conds P,C,V,R,RH,RS --rep 1 --workers 2
+  ```
+
 - (선택) 그다음 `cd ..` 후 `uv run --offline --no-project --python 3.12 probe.py --n 1 --burst 1`을 실행하고, 요약 10줄 중 `T2`와 `RL` 두 줄만 옮긴다. 사고량 옵션이 먹히는지와 429 사유가 나온다.
 
 ## 0. 준비물
@@ -360,3 +367,42 @@ error B: max_turns x2
 
 - `runs` 폴더는 사내에 보관한다. 대화 원문(`traces`)이 들어 있다.
 - 가짜 데이터라 외부 반출 문제는 없지만, 옮길 것은 위 표뿐이다.
+
+## 15. 스킬 시험과 도구 없는 시험
+
+### 스킬 시험 (HS)
+
+14절과 같은 업무 과제에 조건 하나를 더한다. HS는 하네스(H)에 업무별 요령을 담은 짧은 스킬 파일(`bench/skills/*.md`)을 얹은 조건이다.
+
+```powershell
+uv run --offline --no-project --python 3.12 ab.py run --out runs\glm-eval --split eval --conds HS --rep 1 --workers 2
+```
+
+- 14절과 같은 `runs\glm-eval` 폴더를 쓴다. 그래야 B, H와 짝지어 비교된다.
+- 30회 실행, 모델 호출 약 150~200회.
+
+### 도구 없는 시험
+
+업무 도구 없이, 자료(표, 계약서 등)를 질문에 붙여 넣고 답하게 하는 과제 30개다. 조건은 6가지다.
+
+| 조건 | 내용 | 과제당 호출 |
+|---|---|---|
+| `P` | 한 번 답한다 | 1 |
+| `C` | P + "다시 확인해 달라" 한 번 | 2 |
+| `V` | 따로 3번 답하게 하고 다수결. 첫 두 답이 같으면 멈춘다 | 2~3 |
+| `R` | 파이썬 실행 도구 하나만 준다 | 2~5 |
+| `RH` | R + 하네스 | 2~5 |
+| `RS` | RH + 파이썬 스킬 | 2~5 |
+
+```powershell
+uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool --out runs\glm-notool --split notool --conds P,C,V,R,RH,RS --rep 1 --workers 2
+```
+
+- 180회 실행, 모델 호출 약 450회. 429가 나오면 `$env:LLM_GAP = "6"`을 설정하고 같은 명령을 다시 실행한다.
+- **주의:** R, RH, RS는 모델이 쓴 파이썬 코드를 이 PC에서 실행한다.
+  - 실행마다 `runs\glm-notool\ws\` 아래 새 폴더에서 돈다.
+  - 20초가 지나면 멈춘다.
+  - 격리 모드(`-I`)로 실행하고, 환경변수를 넘기지 않아 키가 보이지 않는다.
+  - 과제가 전부 가짜 데이터라 시험에는 괜찮다. 다만 보안 격리 장치는 아니니, 중요한 파일이 있는 폴더에서는 돌리지 않는다.
+
+**옮길 것:** 각 명령이 끝날 때 나오는 결과 표 전체. 14절과 같은 형식이다. 비교 줄은 `HS vs H`, `RH vs P` 같은 형태로 나온다.
