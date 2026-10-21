@@ -10,7 +10,7 @@
 git pull
 cd bench
 $env:LLM_MAX_TOKENS = "8192"
-uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool2 --out runs\glm-notool2 --split notool2 --conds P,RT --rep 1 --workers 2
+uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool2 --out runs\glm-notool2 --split notool2 --conds P,RT4 --rep 1 --workers 2
 ```
 
 - 키 입력 창이 한 번 뜬다. 60회 실행, 모델 호출은 약 150회다.
@@ -18,7 +18,7 @@ uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool2 -
 - 시간이 남으면 처음 판(RH)도 같은 폴더로 돌린다. 이미 끝난 실행은 건너뛴다.
 
   ```powershell
-  uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool2 --out runs\glm-notool2 --split notool2 --conds P,RH,RT --rep 1 --workers 2
+  uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool2 --out runs\glm-notool2 --split notool2 --conds P,RH,RT4 --rep 1 --workers 2
   ```
 
 - 429가 나오면 `$env:LLM_GAP = "6"`을 설정하고 같은 명령을 다시 실행한다.
@@ -407,7 +407,7 @@ uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool --
 | 조건 | 내용 |
 |---|---|
 | `P` | 그냥 한 번 답한다. GLM은 서버 기본값대로 사고를 켠 채 답한다 |
-| `RT` | 최종 하네스. 하네스가 질문 속 표를 `table_1.csv`로 미리 잘라 두고, 모델은 파이썬 코드로 계산한다. 검사를 거친 뒤 코드 출력 마지막 줄이 답 형식이면 그대로 답으로 쓴다 |
+| `RT4` | 최종 하네스. 하네스가 질문 속 표를 정리된 CSV(`table_1.csv`)로 미리 잘라 두고, 모델은 파이썬 코드로 계산한다. 검사를 거친 뒤 코드 출력 마지막 줄이 답 형식이면 그대로 답으로 쓴다 |
 | `RH` (선택) | 처음 판. 파이썬과 검사만 쓰고 표 파일과 바로 끝내기는 없다 |
 
 - `LLM_MAX_TOKENS=8192`: GLM은 사고를 길게 하면 출력 상한 4096에 걸려 답이 잘릴 수 있어 올린다.
@@ -421,5 +421,5 @@ uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool --
 
 **옮길 것:** 마지막 결과 표 전체.
 - `cond` 표: 성공률, 업무별 성공률, `ktok`(평균 천 토큰), `sec`(평균 초)
-- `RT vs P` 줄: 정확도 차이, 신뢰구간, `tokens x…`(토큰 비율)
+- `RT4 vs P` 줄: 정확도 차이, 신뢰구간, `tokens x…`(토큰 비율)
 - `error` 줄이 있으면 그것도
