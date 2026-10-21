@@ -31,8 +31,10 @@ def _tatqa_tasks():
         prompt = (f"Below is a table (tab-separated) and text from a company's financial report.\n\n"
                   f"{table}\n\n{paras}\n\nQuestion: {q['question']}\n\n"
                   'Answer with one JSON line only: {"answer": number, "scale": one of "", "thousand", '
-                  '"million", "billion", "percent"}. Give the number in the unit that "scale" names '
-                  '(for example 12.5 with "percent" for 12.5%, or 3.2 with "million" for $3.2 million).')
+                  '"million", "billion", "percent"}. Keep the unit the report uses for those numbers; do not '
+                  'convert it. If the table says "in thousands", answer in thousands with "scale": "thousand" '
+                  '(e.g. 1234 with "thousand", not 1.234 with "million"). For a percentage, give the percent '
+                  'value with "scale": "percent" (e.g. 12.5 for 12.5%). Otherwise use "scale": "".')
 
         def check(answer, parsed, ws, q=q):
             if not parsed or "answer" not in parsed:
