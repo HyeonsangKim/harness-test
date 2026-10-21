@@ -1,0 +1,352 @@
+[
+ {
+  "id": "gsmh_0666",
+  "my_answer": 4558134.0,
+  "target": 5697664.0,
+  "verdict": "label_wrong",
+  "reason": "code subtracts 30/5 (original 30 marbles) instead of 1/5 of 5697680"
+ },
+ {
+  "id": "gsmh_0128",
+  "my_answer": 2159043.5,
+  "target": 2159043.5,
+  "verdict": "ok",
+  "reason": "literal arithmetic; fractional votes (x.5)"
+ },
+ {
+  "id": "gsmh_0391",
+  "my_answer": 64285676,
+  "target": 19428586.0,
+  "verdict": "label_wrong",
+  "reason": "code keeps initial 48 passengers instead of 44857138"
+ },
+ {
+  "id": "gsmh_1162",
+  "my_answer": 522296640,
+  "target": 104459328.0,
+  "verdict": "label_wrong",
+  "reason": "code uses 3 hours (11-8) instead of 15 hours (8 AM to 11 PM); question says 11:00 PM"
+ },
+ {
+  "id": "gsmh_0454",
+  "my_answer": 46060138,
+  "target": 46060138.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0488",
+  "my_answer": -8.833333333333336,
+  "target": -8.8333333333,
+  "verdict": "ok",
+  "reason": "literal arithmetic; negative change"
+ },
+ {
+  "id": "gsmh_0291",
+  "my_answer": 12.0,
+  "target": 12.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_1112",
+  "my_answer": 1474072.0,
+  "target": 1474072.0,
+  "verdict": "ok",
+  "reason": "total remaining length (1/6+2/3+1/2)*L"
+ },
+ {
+  "id": "gsmh_0917",
+  "my_answer": 48.0,
+  "target": 48.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0186",
+  "my_answer": -80862429414.24,
+  "target": 3981224.8,
+  "verdict": "label_wrong",
+  "reason": "code uses 30% less (original) but question says 1421866% less; literal answer is negative"
+ },
+ {
+  "id": "gsmh_0164",
+  "my_answer": 9,
+  "target": 9.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0655",
+  "my_answer": 1001950,
+  "target": 1001950.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_1040",
+  "my_answer": -8612063.0,
+  "target": -8612063.0,
+  "verdict": "ok",
+  "reason": "literal arithmetic; negative episode count"
+ },
+ {
+  "id": "gsmh_1002",
+  "my_answer": 9731083,
+  "target": 9731083.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0223",
+  "my_answer": 42030514259120,
+  "target": 289934000.0,
+  "verdict": "label_wrong",
+  "reason": "code uses $10/hour (original) instead of $1449664/hour"
+ },
+ {
+  "id": "gsmh_0617",
+  "my_answer": -1080486.5,
+  "target": -1080486.5,
+  "verdict": "ok",
+  "reason": "literal arithmetic; fractional shirts, negative difference"
+ },
+ {
+  "id": "gsmh_1128",
+  "my_answer": 4136835.5,
+  "target": 4136837.0,
+  "verdict": "ambiguous",
+  "reason": "question self-contradictory: 'half of 8273687 test tubes' (4136843.5) vs 'two more than Petri dishes requested' (16). Half reading gives 4136835.5; tubes=16 gives 8; code uses floor half 4136843 plus 16 Petri dishes gathered -> 4136837 (within 1e-6 relative tolerance of 4136835.5 but derived differently)"
+ },
+ {
+  "id": "gsmh_0596",
+  "my_answer": 6250.0,
+  "target": 6250.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0255",
+  "my_answer": 9264234,
+  "target": 9264234.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_1121",
+  "my_answer": -12633364.0,
+  "target": 2526675.200000001,
+  "verdict": "label_wrong",
+  "reason": "code uses 4/5 (original) instead of 4/6316688"
+ },
+ {
+  "id": "gsmh_0681",
+  "my_answer": 1837769.0,
+  "target": 1837769.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_1106",
+  "my_answer": 4190719.0,
+  "target": 4190719.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0416",
+  "my_answer": 3052077,
+  "target": 3052077.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_1235",
+  "my_answer": 77621359658918,
+  "target": -176205698.0,
+  "verdict": "label_wrong",
+  "reason": "code uses 20 pomegranates (original) instead of 8810312 on both days, and reverses sign (Wed-Tue)"
+ },
+ {
+  "id": "gsmh_1120",
+  "my_answer": 13874520,
+  "target": 13874520.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_1203",
+  "my_answer": 7.032941065184638e-07,
+  "target": 5687524.0,
+  "verdict": "label_wrong",
+  "reason": "number replaced the popcorn count in question but the $1 extra charge in code; code's 5687521 extra is not in question"
+ },
+ {
+  "id": "gsmh_0589",
+  "my_answer": 2225220.75,
+  "target": 2225220.75,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0911",
+  "my_answer": 3313620.6879999996,
+  "target": 3313620.6879999996,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0187",
+  "my_answer": 712071.6,
+  "target": 712071.6,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_1221",
+  "my_answer": 15,
+  "target": 15.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0649",
+  "my_answer": 951515.6666666666,
+  "target": 951515.6666666666,
+  "verdict": "ok",
+  "reason": "literal arithmetic; fractional birds"
+ },
+ {
+  "id": "gsmh_1178",
+  "my_answer": -5279780,
+  "target": -5279780.0,
+  "verdict": "ok",
+  "reason": "literal arithmetic; negative people"
+ },
+ {
+  "id": "gsmh_0495",
+  "my_answer": 14387074,
+  "target": 14387074.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0594",
+  "my_answer": 1591653,
+  "target": 1591653.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0376",
+  "my_answer": 114558960.0,
+  "target": 114558960.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0387",
+  "my_answer": 6.000004815982319,
+  "target": 6.000004816,
+  "verdict": "ok",
+  "reason": "literal arithmetic 6+24/4983407; fractional rows (ceil reading would give 7)"
+ },
+ {
+  "id": "gsmh_0382",
+  "my_answer": 280,
+  "target": 280.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0067",
+  "my_answer": 51204384,
+  "target": 51204384.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_1254",
+  "my_answer": 160,
+  "target": 160.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0532",
+  "my_answer": 87,
+  "target": 87.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0975",
+  "my_answer": 45726003.75,
+  "target": 45726003.74999999,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0141",
+  "my_answer": 5579492,
+  "target": 5579492.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0183",
+  "my_answer": 501667000,
+  "target": 501667000.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0266",
+  "my_answer": 23,
+  "target": 4050344.0,
+  "verdict": "label_wrong",
+  "reason": "code sets chihuahua stuffing=736424 but question says 2 lb; question's '736424 kinds' is the replaced 'two kinds'"
+ },
+ {
+  "id": "gsmh_0306",
+  "my_answer": 16416670.0,
+  "target": 16416670.0,
+  "verdict": "ok",
+  "reason": "matches"
+ },
+ {
+  "id": "gsmh_0079",
+  "my_answer": 5489.546666666666,
+  "target": 5489.5466666667,
+  "verdict": "ok",
+  "reason": "literal arithmetic; fractional ducks"
+ },
+ {
+  "id": "gsmh_1107",
+  "my_answer": 299882320,
+  "target": 3908529.0,
+  "verdict": "label_wrong",
+  "reason": "code uses original 2000*70 and 20000 instead of 3748529*70 and 37485290"
+ },
+ {
+  "id": "gsmh_0801",
+  "my_answer": 2.0000007101296804,
+  "target": 2816388.0,
+  "verdict": "label_wrong",
+  "reason": "code divides by 6 women (original) instead of 3+8449158"
+ },
+ {
+  "id": "gsmh_1074",
+  "my_answer": 44425115040948,
+  "target": 122538696.0,
+  "verdict": "label_wrong",
+  "reason": "code uses 15 apple-pie boxes on Sunday (original) instead of 4713021"
+ },
+ {
+  "id": "gsmh_0564",
+  "my_answer": -452479632,
+  "target": -452479632.0,
+  "verdict": "ok",
+  "reason": "matches"
+ }
+]
