@@ -203,7 +203,17 @@ def paired(rows, a, b, seed=0, iters=10000):
     keys = ra.keys() & rb.keys()
     only_b = sum(rb[k] and not ra[k] for k in keys)
     only_a = sum(ra[k] and not rb[k] for k in keys)
-    return {"tasks": len(tasks), "diff": statistics.mean(diffs), "ci95": (boots[int(.025 * iters)], boots[int(.975 * iters)]),
+    tok = lambda r: sum((r.get("tokens") or {}).values())
+    tka = {t: statistics.mean(tok(r) for r in rows if r["task"] == t and r["cond"] == a) for t in tasks}
+    tkb = {t: statistics.mean(tok(r) for r in rows if r["task"] == t and r["cond"] == b) for t in tasks}
+    ratio = ci_ratio = None
+    if all(tka.values()) and all(tkb.values()):
+        def rat(ts):
+            return statistics.mean(tkb[t] for t in ts) / statistics.mean(tka[t] for t in ts)
+        ratio = rat(tasks)
+        rb = sorted(rat([rnd.choice(tasks) for _ in tasks]) for _ in range(2000))
+        ci_ratio = (rb[50], rb[1949])
+    return {"ratio": ratio, "ci_ratio": ci_ratio, "tasks": len(tasks), "diff": statistics.mean(diffs), "ci95": (boots[int(.025 * iters)], boots[int(.975 * iters)]),
             "task_wins": wins, "task_losses": losses, "sign_p": binom_two_sided(wins, wins + losses),
             "run_only_b": only_b, "run_only_a": only_a, "mcnemar_p": binom_two_sided(only_b, only_b + only_a)}
 
@@ -211,6 +221,11 @@ def paired(rows, a, b, seed=0, iters=10000):
 def cmd_report(a):
     out = Path(a.out)
     allrows = [json.loads(l) for l in (out / "results.jsonl").read_text(encoding="utf-8").splitlines()]
+    for extra_dir in filter(None, getattr(a, "also", "").split(",")):   # merge runs kept in other folders
+        allrows += [json.loads(l) for l in (Path(extra_dir) / "results.jsonl").read_text(encoding="utf-8").splitlines()]
+    only = getattr(a, "only_rep", -1)
+    if only >= 0:                              # one repeat only (e.g. the one where token counts exist)
+        allrows = [dict(r, rep=0) for r in allrows if r["rep"] == only]
     reps = getattr(a, "reps", 0)
     if reps:                                  # balanced view: only repeats 0..reps-1, only tasks done in every condition
         allrows = [r for r in allrows if r["rep"] < reps]
@@ -240,7 +255,7 @@ def cmd_report(a):
                      f"{statistics.mean(r['seconds'] for r in rs):6.1f} "
                      f"{sum(1 for r in rs if r['error']):7}")
     lines.append("")
-    order = ("B", "P", "C", "H", "R", "RH")    # each condition is compared with every earlier base present
+    order = ("B", "P", "PT", "C", "H", "R", "RH", "RS")    # each condition is compared with every earlier base present
     for b in conds:
         for base in order:
             if b == base or base not in conds or (b in order and order.index(b) <= order.index(base)):
@@ -249,7 +264,8 @@ def cmd_report(a):
             if p:
                 lines.append(f"{b} vs {base}: {p['diff']:+.1%} (95% CI {p['ci95'][0]:+.1%} .. {p['ci95'][1]:+.1%}), "
                              f"tasks better/worse {p['task_wins']}/{p['task_losses']} sign p={p['sign_p']:.3f}; "
-                             f"runs only-{b}/only-{base} {p['run_only_b']}/{p['run_only_a']} McNemar p={p['mcnemar_p']:.3f}")
+                             f"runs only-{b}/only-{base} {p['run_only_b']}/{p['run_only_a']} McNemar p={p['mcnemar_p']:.3f}"
+                             + (f"; tokens x{p['ratio']:.2f} (CI {p['ci_ratio'][0]:.2f}..{p['ci_ratio'][1]:.2f})" if p["ratio"] else ""))
     ev = {}
     for r in rows:
         for e in r["events"]:
@@ -287,6 +303,8 @@ def main():
     q = sub.add_parser("report")
     q.add_argument("--out", required=True)
     q.add_argument("--reps", type=int, default=0, help="only the first N repeats, paired across conditions")
+    q.add_argument("--also", default="", help="comma-separated extra run folders to merge")
+    q.add_argument("--only-rep", type=int, default=-1, help="use only this repeat index")
     a = p.parse_args()
     cmd_run(a) if a.cmd == "run" else cmd_report(a)
 
