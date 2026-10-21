@@ -107,8 +107,12 @@ class Client:
                 with urllib.request.urlopen(req, timeout=self.timeout, context=self.ctx) as r:
                     return json.load(r)
             except urllib.error.HTTPError as e:
+                body = " ".join(e.read().decode("utf-8", "replace").split())[:200]
+                if e.code == 500 and "parse tool call" in body:
+                    # the server could not read the model's tool call (seen when the model writes the same
+                    # code over and over until max_tokens cuts it): resending the same request does not help
+                    raise RuntimeError(self.redact(f"bad_tool_call: {body}"))
                 if e.code not in (429, 500, 502, 503, 504) or attempt == 5:
-                    body = " ".join(e.read().decode("utf-8", "replace").split())[:200]
                     raise RuntimeError(self.redact(f"http_{e.code}: {body}"))
             except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.HTTPException) as e:
                 if attempt == 5:
@@ -297,11 +301,20 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
         return out
 
     used = sum(1 for m in messages if m["role"] == "assistant")
+    bad_calls = 0
     for turn in range(used, max_turns):
         save(False)
         try:
             resp = client.chat(messages, specs)
         except RuntimeError as e:
+            if str(e).startswith("bad_tool_call") and "recover" in feats and bad_calls < 2:
+                bad_calls += 1
+                events.append("bad_call")
+                messages.append({"role": "user", "content": (
+                    "[harness] Your last reply could not be read: the tool call was cut off or malformed, "
+                    "probably because the code was too long or repeated itself. Send a short program "
+                    "(about 60 lines at most) that reads the data from the files instead of writing it out.")})
+                continue
             error = str(e)
             break
         cap = getattr(client, "max_tokens", 4096)
