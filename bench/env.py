@@ -6,6 +6,7 @@ Standard library only.
 """
 import ast
 import os
+import re
 import operator
 import random
 import shutil
@@ -255,7 +256,28 @@ def doc_tools(docs):
 
 # ---------------------------------------------------------------- one general tool: run Python
 
-def python_tool(workdir, input_text=None, finish_hint=False):
+def extract_tables(text, min_rows=3):
+    """Tables pasted into a message: runs of consecutive lines that split into the same number (>= 3) of
+    cells on one delimiter (comma, tab or |), whose first line looks like a header of short names.
+    Returns [(delimiter, [lines])]. Rule-based, no model call."""
+    found = []
+    lines = (text or "").splitlines()
+    for d in (",", "\t", "|"):
+        run = []
+        for line in lines + [""]:
+            n = line.count(d)
+            if n >= 2 and (not run or run[0].count(d) == n):
+                run.append(line.strip())
+                continue
+            header = run[0].strip(d).split(d) if run else []
+            ok = header and all(0 < len(c.strip()) <= 20 and not re.search(r"\d,\d{3}|:", c) for c in header)
+            if len(run) >= min_rows and ok:
+                found.append((d, run))
+            run = [line.strip()] if n >= 2 else []
+    return found
+
+
+def python_tool(workdir, input_text=None, finish_hint=False, tables=False):
     """A single general-purpose action for tasks without domain tools.
     Runs a standard-library Python program in its own folder with a 20 s limit, no inherited
     environment variables (so no keys), isolated mode (-I). This prevents accidents; it is not a security sandbox."""
@@ -279,6 +301,16 @@ def python_tool(workdir, input_text=None, finish_hint=False):
 
     desc = ("Run a Python 3 program (standard library only) and return its exit code, "
             "stdout and stderr. Use print() to show results. Each call starts fresh.")
+    if tables and input_text is not None:
+        found = extract_tables(input_text)
+        names = {",": "comma", "\t": "tab", "|": "|"}
+        for i, (d, rows) in enumerate(found, 1):
+            (root / f"table_{i}.csv").write_text("\n".join(rows) + "\n", encoding="utf-8")
+        if found:
+            desc += (" Tables from the user's message are already saved as files; read them with "
+                     "csv.DictReader(open(name, encoding='utf-8'), delimiter=...): " + "; ".join(
+                         f"table_{i}.csv ({len(rows) - 1} data rows, delimiter {names[d]}, columns: {rows[0]})"
+                         for i, (d, rows) in enumerate(found, 1)) + ".")
     if input_text is not None:
         desc += (" The user's whole message, including any pasted data, is saved as the file input.txt in the "
                  "working directory: read it with open('input.txt', encoding='utf-8').read() instead of "

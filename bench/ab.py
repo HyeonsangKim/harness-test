@@ -30,7 +30,7 @@ def features_of(cond):
         return hx.FEATURES
     if cond in ("H1", "RH1"):               # harness v1 (stall note instead of repeat block)
         return hx.FEATURES_V1
-    if cond == "RX":                        # tool-free harness v2: data as a file + finish from program output
+    if cond in ("RX", "RT"):                # tool-free harness v2 (RX) and v3 (RT: + tables pre-split into files)
         return hx.FEATURES_NT2
     if cond == "H":
         return hx.FEATURES
@@ -49,6 +49,8 @@ def run_one(client, task, cond, rep, out):
             tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"])
         elif cond == "RX":
             tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], finish_hint=True)
+        elif cond == "RT":
+            tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], finish_hint=True, tables=True)
         else:
             tools = env.python_tool(out / "ws" / tag) if cond in ("R", "RH", "RS") else {}
     elif task["tools"] == "erp":
@@ -94,9 +96,9 @@ SKILL_FILE = {"erp": "erp.md", "code": "code.md", "doc": "doc.md", "none": "pyth
 
 def system_for(task, cond):
     """HS and RS add the skill file of the task's tool family to the system prompt; others use the plain one."""
-    if cond not in ("HS", "RS", "RX"):
+    if cond not in ("HS", "RS", "RX", "RT"):
         return hx.SYSTEM
-    name = "python_v2.md" if cond == "RX" else SKILL_FILE[task["tools"]]
+    name = {"RX": "python_v2.md", "RT": "python_v3.md"}.get(cond, SKILL_FILE[task["tools"]])
     text = (SKILLS / name).read_text(encoding="utf-8").strip()
     return hx.SYSTEM + "\n\n# How to work with these tools\n" + text
 
