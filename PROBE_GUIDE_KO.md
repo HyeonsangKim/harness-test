@@ -9,7 +9,7 @@
 ```powershell
 git pull
 cd bench
-python ab.py run --out runs\glm-eval --split eval --conds B,H --rep 1 --workers 2
+uv run --offline --no-project --python 3.12 ab.py run --out runs\glm-eval --split eval --conds B,H --rep 1 --workers 2
 ```
 
 - 키 입력 창이 한 번 뜬다. 약 60회 실행, 모델 호출 약 300~400회.
@@ -17,13 +17,13 @@ python ab.py run --out runs\glm-eval --split eval --conds B,H --rep 1 --workers 
 - 시간이 남고 429가 없었으면 같은 폴더로 범위를 넓혀 이어서 돌린다. 이미 끝난 실행은 건너뛴다.
 
   ```powershell
-  python ab.py run --out runs\glm-eval --split eval --conds B,C,H --rep 3 --workers 2
+  uv run --offline --no-project --python 3.12 ab.py run --out runs\glm-eval --split eval --conds B,C,H --rep 3 --workers 2
   ```
 
 - 429가 나왔으면 다음처럼 한다.
   1. 결과의 `error` 줄에 적힌 거절 사유를 옮긴다.
   2. `$env:LLM_GAP = "6"`을 설정하고 같은 명령을 다시 실행한다. 한도에 막혀 실패한 실행만 다시 돈다.
-- (선택) 그다음 `cd ..` 후 `python probe.py --n 1 --burst 1`을 실행하고, 요약 10줄 중 `T2`와 `RL` 두 줄만 옮긴다. 사고량 옵션이 먹히는지와 429 사유가 나온다.
+- (선택) 그다음 `cd ..` 후 `uv run --offline --no-project --python 3.12 probe.py --n 1 --burst 1`을 실행하고, 요약 10줄 중 `T2`와 `RL` 두 줄만 옮긴다. 사고량 옵션이 먹히는지와 429 사유가 나온다.
 
 ## 0. 준비물
 
@@ -36,13 +36,23 @@ python ab.py run --out runs\glm-eval --split eval --conds B,H --rep 1 --workers 
 
 ## 1. 파이썬 확인
 
+사내는 uv로 파이썬을 쓰므로 모든 명령을 `uv run --offline --no-project --python 3.12 ...` 형태로 실행한다.
+
 ```powershell
-python --version        # 3.12.x 가 나오면 이후 "python" 사용
-py -3.12 --version      # 이게 되면 이후 "py -3.12" 사용
-uv python find 3.12     # 위 둘 다 안 되면 출력된 python.exe 전체 경로 사용
+uv --version
+uv python find 3.12     # 3.12 python.exe 경로가 나오면 준비됨
+uv run --offline --no-project --python 3.12 -c "import sys; print(sys.version)"
 ```
 
-아래는 `python`으로 적었다. 확인 결과에 맞게 바꿔 쓴다. 추가 패키지 설치는 필요 없다(표준 라이브러리만 사용).
+| 옵션 | 뜻 |
+|---|---|
+| `--offline` | 인터넷에서 아무것도 받지 않는다. 폐쇄망에서 받으려다 멈추는 일을 막는다 |
+| `--no-project` | 이 폴더를 uv 프로젝트로 보지 않는다. 가상환경을 만들지 않고 패키지도 설치하지 않는다 |
+| `--python 3.12` | 이미 설치된 3.12를 쓴다 |
+
+- 추가 패키지 설치는 필요 없다(표준 라이브러리만 사용).
+- 셋째 줄이 `3.12.x`를 출력하면 통과다.
+- `No interpreter found`가 나오면 `uv python list`로 설치된 버전을 확인하고, `--python` 뒤의 값을 그 버전으로 바꾼다.
 
 ## 2. 코드 받기
 
@@ -57,7 +67,7 @@ cd harness-test
 ## 3. 확인
 
 ```powershell
-python -m py_compile probe.py
+uv run --offline --no-project --python 3.12 -m py_compile probe.py behavior.py bench\ab.py bench\hx.py bench\env.py bench\tasks.py bench\grade.py
 ```
 
 아무 출력이 없으면 통과.
@@ -76,7 +86,7 @@ $env:LLM_MODEL = "정확한-모델-ID"
 **권장: 실행할 때 입력**
 
 ```powershell
-python probe.py --n 1 --burst 1
+uv run --offline --no-project --python 3.12 probe.py --n 1 --burst 1
 ```
 
 `API key:`가 뜨면 키를 붙여넣고(우클릭 또는 Ctrl+V) Enter. **화면에 아무것도 안 보이는 게 정상이다.** 키는 메모리에만 있고 결과 파일에 저장되지 않는다.
@@ -85,7 +95,7 @@ python probe.py --n 1 --burst 1
 
 ```powershell
 $env:LLM_API_KEY = "키"
-python probe.py --n 10
+uv run --offline --no-project --python 3.12 probe.py --n 10
 Remove-Item Env:LLM_API_KEY   # 끝나면 지운다
 ```
 
@@ -95,8 +105,8 @@ PowerShell 명령 기록에 키가 남을 수 있어 권장 방법을 우선한�
 
 | 순서 | 명령 | 호출 수 | 목적 |
 |---|---|---|---|
-| 1. 연기 테스트 | `python probe.py --n 1 --burst 1` | 약 24회 | 주소·키·연결 확인 |
-| 2. 본 테스트 | `python probe.py --n 10` | 약 45회 | 옵션 지원, 도구 왕복, 신뢰도 20회, 지연, 동시성, 토큰 보정, 사고량 비교 |
+| 1. 연기 테스트 | `uv run --offline --no-project --python 3.12 probe.py --n 1 --burst 1` | 약 24회 | 주소·키·연결 확인 |
+| 2. 본 테스트 | `uv run --offline --no-project --python 3.12 probe.py --n 10` | 약 45회 | 옵션 지원, 도구 왕복, 신뢰도 20회, 지연, 동시성, 토큰 보정, 사고량 비교 |
 
 사고 모드는 끌 수 없어서 호출당 수십 초 걸릴 수 있다. 특히 6단계는 계산 문제를 서버 기본 사고량(max)으로도 풀게 하므로 한 번에 몇 분 걸릴 수 있다(호출당 최대 10분 대기). 옵션:
 
@@ -249,7 +259,7 @@ python3 probe.py --n 3 --burst 2
 probe.py가 "게이트웨이와 형식"을 본다면, behavior.py는 "모델이 일을 어떻게 하는지"를 작은 문제 7종으로 본다. probe.py와 같은 폴더에서, 같은 환경변수로 실행한다. 키는 다시 입력한다.
 
 ```powershell
-python behavior.py --rep 3
+uv run --offline --no-project --python 3.12 behavior.py --rep 3
 ```
 
 약 55회 호출, 사고량은 기본 low(`--effort high`로 바꿀 수 있다). 끝나면 `== copy these lines` 아래 8줄만 옮긴다.
@@ -283,16 +293,21 @@ RL -
 공개 벤치마크를 사내에서 돌릴 수 있는지 정하는 확인이다. 아무것도 설치하지 않고, 작은 패키지 하나를 임시 폴더에 내려받아만 본다.
 
 ```powershell
-python -m pip config list
-python -m pip download requests --no-deps -d $env:TEMP\piptest
+Get-ChildItem Env:UV_* ; Get-Content $env:APPDATA\uv\uv.toml -ErrorAction SilentlyContinue
+uv venv $env:TEMP\uvtest --python 3.12
+uv pip install --python $env:TEMP\uvtest --dry-run requests
 ```
+
+- 첫째 줄은 uv의 패키지 저장소 설정을 보여 준다.
+- 둘째·셋째 줄은 임시 가상환경을 만들고, 설치는 하지 않고(`--dry-run`) 받을 수 있는지만 확인한다.
+- 확인이 끝나면 `Remove-Item -Recurse $env:TEMP\uvtest`로 지운다.
 
 | 결과 | 뜻 |
 |---|---|
-| 둘째 줄이 `Saved ...requests-...whl`로 끝남 | 설치 가능(사내 미러가 있거나 외부 PyPI 접근 가능). 첫째 줄에 `index-url`이 보이면 사내 미러 주소 |
-| `Could not find a version` / `ConnectionError` / 시간 초과 | 설치 불가 |
+| 마지막에 `+ requests==...`가 보임 | 설치 가능(사내 미러가 있거나 외부 PyPI 접근 가능). 첫째 줄에 `UV_INDEX_URL`, `UV_DEFAULT_INDEX`, 또는 `index` 설정이 보이면 사내 미러 |
+| `Failed to fetch` / `error sending request` / 시간 초과 | 설치 불가 |
 
-결과 한 줄(가능/불가)과, 보였다면 `index-url`이 사내 주소인지 외부 주소인지만 전달한다. 주소 자체는 적지 않는다.
+결과 한 줄(가능/불가)과, 보였다면 저장소 설정이 사내 주소인지 외부 주소인지만 전달한다. 주소 자체는 적지 않는다.
 
 ## 14. 하네스 A/B 시험: bench/ab.py
 
@@ -313,8 +328,8 @@ python -m pip download requests --no-deps -d $env:TEMP\piptest
 
 ```powershell
 cd bench
-python ab.py run --out runs\glm-eval --split eval --conds B,H --rep 1 --workers 2
-python ab.py report --out runs\glm-eval      # 표만 다시 보기
+uv run --offline --no-project --python 3.12 ab.py run --out runs\glm-eval --split eval --conds B,H --rep 1 --workers 2
+uv run --offline --no-project --python 3.12 ab.py report --out runs\glm-eval      # 표만 다시 보기
 ```
 
 - 중간에 끊겨도(Ctrl+C, 창 닫힘) 같은 명령을 다시 실행하면 남은 것만 이어서 돈다.
