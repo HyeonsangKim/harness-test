@@ -55,7 +55,7 @@ def main():
         text += f"\n\nAnswer with one JSON line only: {{{example}}}"
 
     run_dir = Path(a.workdir) / time.strftime("%Y%m%d-%H%M%S")
-    tools = env.python_tool(run_dir / "ws", input_text=text, finish_hint=contract is not None, clean_tables=True)
+    tools = env.python_tool(run_dir / "ws", input_text=text, finish_hint=contract is not None, clean_tables="keep")
     system = hx.SYSTEM + "\n\n# How to work with these tools\n" + (
         Path(__file__).with_name("skills") / "python_v3.md").read_text(encoding="utf-8").strip()
     client = hx.client_from_env(extra=json.loads(os.getenv("LLM_EXTRA", "{}")))
