@@ -95,6 +95,11 @@ class Client:
                 "max_tokens": max_tokens or getattr(self, "max_tokens", 4096), **self.extra}
         if tools:   # some servers reject an empty tools list, so plain chat sends none
             body.update(tools=[{"type": "function", "function": t} for t in tools], tool_choice="auto")
+        # LLM_STREAM=1: receive the reply as it is written. The timeout then only fires when nothing arrives for
+        # that long (a slow, long-thinking model is not cut off), and a reply that loops can be stopped early.
+        stream = os.getenv("LLM_STREAM") == "1"
+        if stream:
+            body.update(stream=True, stream_options={"include_usage": True})
         data = json.dumps(body, ensure_ascii=False).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if self.key:
@@ -105,7 +110,7 @@ class Client:
             req = urllib.request.Request(self.url, data=data, headers=headers)
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout, context=self.ctx) as r:
-                    return json.load(r)
+                    return self._read_stream(r) if stream else json.load(r)
             except urllib.error.HTTPError as e:
                 body = " ".join(e.read().decode("utf-8", "replace").split())[:200]
                 if e.code == 500 and "parse tool call" in body:
@@ -118,6 +123,53 @@ class Client:
                 if attempt == 5:
                     raise RuntimeError(self.redact(f"connection: {e}"))
             time.sleep(min(5 * 2 ** attempt, 60))
+
+
+    @staticmethod
+    def _looping(text, span=80, times=6, window=4000):
+        """The reply keeps writing the same text: its last `span` characters already occur `times` times in the
+        last `window` characters."""
+        if len(text) < span * times:
+            return False
+        return text[-window:].count(text[-span:]) >= times
+
+    def _read_stream(self, r):
+        """Collect a server-sent-events reply into the same shape as a non-streamed one."""
+        content, reasoning, calls, finish, usage = [], [], {}, None, None
+        written = 0
+        for raw in r:
+            line = raw.decode("utf-8", "replace").strip()
+            if not line.startswith("data:"):
+                continue
+            payload = line[5:].strip()
+            if payload == "[DONE]":
+                break
+            chunk = json.loads(payload)
+            usage = chunk.get("usage") or usage
+            for ch in chunk.get("choices") or []:
+                d = ch.get("delta") or {}
+                content.append(d.get("content") or "")
+                reasoning.append(d.get("reasoning_content") or "")
+                for tc in d.get("tool_calls") or []:
+                    slot = calls.setdefault(tc.get("index", 0), {"id": None, "type": "function",
+                                                                 "function": {"name": "", "arguments": ""}})
+                    slot["id"] = tc.get("id") or slot["id"]
+                    fn = tc.get("function") or {}
+                    slot["function"]["name"] += fn.get("name") or ""
+                    slot["function"]["arguments"] += fn.get("arguments") or ""
+                finish = ch.get("finish_reason") or finish
+            text = "".join(content) + "".join(c["function"]["arguments"] for c in calls.values())
+            if len(text) - written >= 500:      # check now and then, not on every token
+                written = len(text)
+                if self._looping(text):
+                    finish = "loop"
+                    break
+        msg = {"role": "assistant", "content": "".join(content) or None}
+        if any(reasoning):
+            msg["reasoning_content"] = "".join(reasoning)
+        if calls and finish != "loop":
+            msg["tool_calls"] = [calls[i] for i in sorted(calls)]
+        return {"choices": [{"message": msg, "finish_reason": finish}], "usage": usage or {}}
 
 
 # ---------------------------------------------------------------- text tool-call recovery
@@ -342,6 +394,14 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
         usage = resp.get("usage") or {}
         tokens["prompt"] += usage.get("prompt_tokens") or 0
         tokens["completion"] += usage.get("completion_tokens") or 0
+        if (resp.get("choices") or [{}])[0].get("finish_reason") == "loop" and "recover" in feats and bad_calls < 2:
+            bad_calls += 1      # stopped while writing the same text over and over: more room would not help
+            events.append("loop")
+            messages.append({"role": "user", "content": (
+                "[harness] Your last reply was stopped because it kept repeating the same text. Do not weigh "
+                "readings in comments: pick the most likely reading of the question, state it in one comment "
+                "line, and send a short program.")})
+            continue
         msg = (resp.get("choices") or [{}])[0].get("message") or {}
         content = msg.get("content") or ""
         tcalls = msg.get("tool_calls") or []
