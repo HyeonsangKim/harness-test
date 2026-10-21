@@ -120,6 +120,19 @@ def needs_code(request, contract):
     return False
 
 
+_CODE_ASK = re.compile(r"```python|\bdef \w+\(|파이썬|python 함수|python function|write a (python )?function|"
+                       r"함수를? 작성", re.IGNORECASE)
+
+
+def wants_harness(request, contract):
+    """Route a request: the harness (run_python, its working rules, checks) is for requests with a structured
+    answer (JSON), a pasted table, or a request for code. Free-form writing goes to the model directly, because
+    the working rules for code distract a small model from writing instructions (IFEval)."""
+    if (contract or {}).get("type") == "json":
+        return True
+    return needs_code(request, contract) or bool(_CODE_ASK.search(request or ""))
+
+
 def finish_line(tool_output, contract):
     """Last non-empty stdout line of a run_python result, if it already is a valid answer."""
     if not contract or contract.get("type") != "json":

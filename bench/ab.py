@@ -53,6 +53,9 @@ def features_of(cond):
 
 def run_one(client, task, cond, rep, out):
     tag = f"{task['id']}__{cond}__{rep}"
+    label = cond
+    if cond == "RT12":                      # v8: RT9 for structured answers, tables and code; free writing answered directly
+        cond = "RT9" if hx.wants_harness(task["prompt"], task.get("contract")) else "P"
     ws, verify = None, None
     if task["tools"] == "none":
         if cond == "RF":
@@ -93,16 +96,17 @@ def run_one(client, task, cond, rep, out):
                          contract=task.get("contract"), verify=verify, trace=out / "traces" / f"{tag}.json",
                          system=system_for(task, cond), resume=ws is None)
     except Exception as e:  # noqa: BLE001 - anything that escapes the loop is an infrastructure failure
-        return {"task": task["id"], "domain": task["domain"], "cond": cond, "rep": rep, "pass": False,
+        return {"task": task["id"], "domain": task["domain"], "cond": label, "rep": rep, "pass": False,
                 "turns": 0, "calls": 0, "events": [], "error": f"connection: {type(e).__name__}: {e}"[:200],
                 "edit_failures": 0, "seconds": round(time.monotonic() - start, 1)}
     try:
         ok = bool(task["check"](res["answer"] or "", grade.parse_json(res["answer"] or ""), ws))
     except Exception as e:  # noqa: BLE001 - a crashing check is a failed answer
         ok, res["error"] = False, res["error"] or f"check: {type(e).__name__}"
-    return {"task": task["id"], "domain": task["domain"], "cond": cond, "rep": rep, "pass": ok,
+    events = res["events"] + ([] if cond == label else [f"routed_{cond}"])
+    return {"task": task["id"], "domain": task["domain"], "cond": label, "rep": rep, "pass": ok,
             "tokens": res.get("tokens"),
-            "turns": res["turns"], "calls": res["calls"], "events": res["events"], "error": res["error"],
+            "turns": res["turns"], "calls": res["calls"], "events": events, "error": res["error"],
             "edit_failures": ws.edit_failures if ws else 0, "seconds": round(time.monotonic() - start, 1)}
 
 
