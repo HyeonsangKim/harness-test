@@ -5,6 +5,8 @@ exception. How that error reaches the model is the harness's job, not the tool's
 Standard library only.
 """
 import ast
+import csv
+import io
 import os
 import re
 import operator
@@ -256,15 +258,23 @@ def doc_tools(docs):
 
 # ---------------------------------------------------------------- one general tool: run Python
 
-def extract_tables(text, min_rows=3):
+_THOUSANDS = re.compile(r"(?<=\d),(?=\d{3}(?!\d))")
+
+
+def extract_tables(text, min_rows=3, clean=False):
     """Tables pasted into a message: runs of consecutive lines that split into the same number (>= 3) of
     cells on one delimiter (comma, tab or |), whose first line looks like a header of short names.
-    Returns [(delimiter, [lines])]. Rule-based, no model call."""
+    Returns [(delimiter, [lines])]. Rule-based, no model call.
+    clean=True: commas inside numbers (1,234) do not count as delimiters, and lines already taken by a
+    tab or | table are not taken again as a comma table."""
     found = []
     lines = (text or "").splitlines()
-    for d in (",", "\t", "|"):
+    taken = set()
+    for d in (("\t", "|", ",") if clean else (",", "\t", "|")):
         run = []
-        for line in lines + [""]:
+        for i, line in enumerate(lines + [""]):
+            if clean and d == ",":
+                line = "" if i in taken else _THOUSANDS.sub("", line)
             n = line.count(d)
             if n >= 2 and (not run or run[0].count(d) == n):
                 run.append(line.strip(" \r"))       # keep leading/trailing delimiters (empty first cell)
@@ -274,11 +284,56 @@ def extract_tables(text, min_rows=3):
             ok = len(named) >= 2 and all(len(c) <= 40 and not re.search(r"\d,\d{3}|:", c) for c in named)
             if len(run) >= min_rows and ok:
                 found.append((d, run))
+                taken.update(range(i - len(run), i))
             run = [line.strip(" \r")] if n >= 2 else []
     return found
 
 
-def python_tool(workdir, input_text=None, finish_hint=False, tables=False):
+_NUM = re.compile(r"[\s$₩(−-]*[\d.,]+\s*%?\)?\s*(원)?")
+
+
+def normalize_table(d, rows):
+    """One clean comma CSV from an extracted table: cells stripped, outer | and markdown alignment rows
+    removed, header rows above the data (no number cells, or an empty first cell) merged into one name per
+    column, empty names filled as col1, col2, ... and duplicates numbered. Returns (header, csv_text)."""
+    cells = []
+    for line in rows:
+        if d == "|":
+            line = line.strip()
+            line = line[1:] if line.startswith("|") else line
+            line = line[:-1] if line.endswith("|") else line
+        row = [c.strip() for c in line.split(d)]
+        if d == "|" and all(re.fullmatch(r":?-{2,}:?", c) for c in row if c) and any(row):
+            continue
+        cells.append(row)
+    width = max(len(r) for r in cells)
+    cells = [r + [""] * (width - len(r)) for r in cells]
+    k = 1
+    while k < min(4, len(cells) - 1):
+        row = cells[k]
+        if row[0] and any(_NUM.fullmatch(c) for c in row if c):
+            break
+        if row[0] and cells[k - 1][0]:
+            break
+        k += 1
+    head = cells[:k]
+    for r in head[:-1]:                              # a group name spans the empty cells to its right
+        for j in range(1, width):
+            if not r[j] and r[j - 1] and j > 1:
+                r[j] = r[j - 1]
+    names, seen = [], {}
+    for j in range(width):
+        name = " ".join(r[j] for r in head if r[j]) or f"col{j + 1}"
+        seen[name] = seen.get(name, 0) + 1
+        names.append(name if seen[name] == 1 else f"{name}_{seen[name]}")
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator="\n")
+    w.writerow(names)
+    w.writerows(r for r in cells[k:] if any(r))
+    return names, buf.getvalue()
+
+
+def python_tool(workdir, input_text=None, finish_hint=False, tables=False, clean_tables=False):
     """A single general-purpose action for tasks without domain tools.
     Runs a standard-library Python program in its own folder with a 20 s limit, no inherited
     environment variables (so no keys), isolated mode (-I). This prevents accidents; it is not a security sandbox."""
@@ -315,7 +370,16 @@ def python_tool(workdir, input_text=None, finish_hint=False, tables=False):
 
     desc = ("Run a Python 3 program (standard library only) and return its exit code, "
             "stdout and stderr. Use print() to show results. Each call starts fresh.")
-    if tables and input_text is not None:
+    if clean_tables and input_text is not None:
+        found = [normalize_table(d, rows) for d, rows in extract_tables(input_text, clean=True)]
+        for i, (names, body) in enumerate(found, 1):
+            (root / f"table_{i}.csv").write_text(body, encoding="utf-8")
+        if found:
+            desc += (" Tables from the user's message are already saved as comma-separated files with one "
+                     "header row; read them with csv.DictReader(open(name, encoding='utf-8')): " + "; ".join(
+                         f"table_{i}.csv ({body.count(chr(10)) - 1} data rows, columns: {names})"
+                         for i, (names, body) in enumerate(found, 1)) + ".")
+    elif tables and input_text is not None:
         found = extract_tables(input_text)
         names = {",": "comma", "\t": "tab", "|": "|"}
         for i, (d, rows) in enumerate(found, 1):
