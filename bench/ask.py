@@ -4,6 +4,7 @@
     python ask.py question.txt --json answer:float # answer as one JSON line with these keys
     type question.txt | python ask.py -            # question from stdin
 
+Free-form writing (no JSON answer, table, numbers or code asked for) is answered directly, without the harness.
 The question file holds the whole request, with any tables or documents pasted in. The model gets one
 action, run_python: tables in the question are saved as table_N.csv, the whole question as input.txt, and
 the model computes the answer in code. With --json, the last printed line of a program that already has
@@ -55,11 +56,15 @@ def main():
         text += f"\n\nAnswer with one JSON line only: {{{example}}}"
 
     run_dir = Path(a.workdir) / time.strftime("%Y%m%d-%H%M%S")
-    tools = env.python_tool(run_dir / "ws", input_text=text, finish_hint=contract is not None, clean_tables="keep")
-    system = hx.SYSTEM + "\n\n# How to work with these tools\n" + (
-        Path(__file__).with_name("skills") / "python_v3.md").read_text(encoding="utf-8").strip()
+    if hx.wants_harness(text, contract):    # structured answer, table, numbers or code: use the harness
+        tools = env.python_tool(run_dir / "ws", input_text=text, finish_hint=contract is not None,
+                                clean_tables="keep")
+        system = hx.SYSTEM + "\n\n# How to work with these tools\n" + (
+            Path(__file__).with_name("skills") / "python_v3.md").read_text(encoding="utf-8").strip()
+    else:                                   # free-form writing: answer directly (the code rules only distract)
+        tools, system = {}, hx.SYSTEM
     client = hx.client_from_env(extra=json.loads(os.getenv("LLM_EXTRA", "{}")))
-    res = hx.run(client, text, tools, features=hx.FEATURES_NT7, contract=contract,
+    res = hx.run(client, text, tools, features=hx.FEATURES_NT7 if tools else (), contract=contract,
                  trace=run_dir / "trace.json", system=system, max_turns=a.max_turns)
     print(res["answer"] or "")
     print(f"[harness] turns={res['turns']} tokens={res.get('tokens')} events={res['events']} "
