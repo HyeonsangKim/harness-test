@@ -4,33 +4,24 @@
 - **하네스 A/B 시험** (`bench/ab.py`, 14절): 같은 GLM-5.3-Flash에 하네스를 켜고 끈 성공률을 업무 과제 30개로 비교한다. **지금 가장 중요한 시험이다.**
 - **모델 프로필** (`probe.py`, `behavior.py`): 게이트웨이와 모델의 성질(옵션, 도구 호출, 지연, 한국어 토큰)을 잰다. 연결 시험과 본 시험은 끝났고, 사고량 비교만 호출 한도(429)로 막혀 있다.
 
-**이번에 할 것** (환경변수 설정은 4절, 처음이면 2절부터):
+**이번에 할 것: 도구 없는 하네스를 GLM으로 재기** (환경변수는 4절, 자세한 설명은 16절)
 
 ```powershell
 git pull
 cd bench
-uv run --offline --no-project --python 3.12 ab.py run --out runs\glm-eval --split eval --conds B,H --rep 1 --workers 2
+$env:LLM_MAX_TOKENS = "8192"
+uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool2 --out runs\glm-notool2 --split notool2 --conds P,RT --rep 1 --workers 2
 ```
 
-- 키 입력 창이 한 번 뜬다. 약 60회 실행, 모델 호출 약 300~400회.
-- 끝나면 화면 끝에 결과 표가 나온다. 14절의 "옮길 것"만 옮긴다.
-- 시간이 남고 429가 없었으면 같은 폴더로 범위를 넓혀 이어서 돌린다. 이미 끝난 실행은 건너뛴다.
+- 키 입력 창이 한 번 뜬다. 60회 실행, 모델 호출은 약 150회다.
+- 끝나면 결과 표가 나온다. 16절의 "옮길 것"만 옮긴다.
+- 시간이 남으면 처음 판(RH)도 같은 폴더로 돌린다. 이미 끝난 실행은 건너뛴다.
 
   ```powershell
-  uv run --offline --no-project --python 3.12 ab.py run --out runs\glm-eval --split eval --conds B,C,H --rep 3 --workers 2
+  uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool2 --out runs\glm-notool2 --split notool2 --conds P,RH,RT --rep 1 --workers 2
   ```
 
-- 429가 나왔으면 다음처럼 한다.
-  1. 결과의 `error` 줄에 적힌 거절 사유를 옮긴다.
-  2. `$env:LLM_GAP = "6"`을 설정하고 같은 명령을 다시 실행한다. 한도에 막혀 실패한 실행만 다시 돈다.
-- **GLM 결과가 이미 나왔으면 다음 두 시험을 이어서 돌린다** (15절):
-
-  ```powershell
-  uv run --offline --no-project --python 3.12 ab.py run --out runs\glm-eval --split eval --conds HS --rep 1 --workers 2
-  uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool --out runs\glm-notool --split notool --conds P,C,V,R,RH,RS --rep 1 --workers 2
-  ```
-
-- (선택) 그다음 `cd ..` 후 `uv run --offline --no-project --python 3.12 probe.py --n 1 --burst 1`을 실행하고, 요약 10줄 중 `T2`와 `RL` 두 줄만 옮긴다. 사고량 옵션이 먹히는지와 429 사유가 나온다.
+- 429가 나오면 `$env:LLM_GAP = "6"`을 설정하고 같은 명령을 다시 실행한다.
 
 ## 0. 준비물
 
@@ -406,3 +397,26 @@ uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool --
   - 과제가 전부 가짜 데이터라 시험에는 괜찮다. 다만 보안 격리 장치는 아니니, 중요한 파일이 있는 폴더에서는 돌리지 않는다.
 
 **옮길 것:** 각 명령이 끝날 때 나오는 결과 표 전체. 14절과 같은 형식이다. 비교 줄은 `HS vs H`, `RH vs P` 같은 형태로 나온다.
+
+## 16. 도구 없는 하네스 시험 (GLM)
+
+붙여 넣은 자료(표, 계약서, 계산 규칙)로 묻는 업무 30개를 두 방식으로 비교한다.
+
+| 조건 | 내용 |
+|---|---|
+| `P` | 그냥 한 번 답한다. GLM은 서버 기본값대로 사고를 켠 채 답한다 |
+| `RT` | 최종 하네스. 하네스가 질문 속 표를 `table_1.csv`로 미리 잘라 두고, 모델은 파이썬 코드로 계산한다. 검사를 거친 뒤 코드 출력 마지막 줄이 답 형식이면 그대로 답으로 쓴다 |
+| `RH` (선택) | 처음 판. 파이썬과 검사만 쓰고 표 파일과 바로 끝내기는 없다 |
+
+- `LLM_MAX_TOKENS=8192`: GLM은 사고를 길게 하면 출력 상한 4096에 걸려 답이 잘릴 수 있어 올린다.
+- **주의:** `RT`와 `RH`는 모델이 쓴 파이썬 코드를 이 PC에서 실행한다.
+  - 실행마다 `runs\glm-notool2\ws\` 아래 새 폴더에서 돈다.
+  - 20초가 지나면 멈춘다.
+  - 격리 모드로 실행하고, 환경변수를 넘기지 않아 키가 보이지 않는다.
+  - 다만 보안 격리는 아니므로 중요한 파일이 있는 폴더에서는 돌리지 않는다.
+- 과제는 모두 가짜 데이터다.
+
+**옮길 것:** 마지막 결과 표 전체.
+- `cond` 표: 성공률, 업무별 성공률, `ktok`(평균 천 토큰), `sec`(평균 초)
+- `RT vs P` 줄: 정확도 차이, 신뢰구간, `tokens x…`(토큰 비율)
+- `error` 줄이 있으면 그것도

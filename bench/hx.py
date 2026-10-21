@@ -369,5 +369,7 @@ def client_from_env(extra=None):
     if key is None:
         local = "://127.0.0.1" in url or "://localhost" in url
         key = "" if local else getpass.getpass("API key: ")
-    return Client(url, os.environ["LLM_MODEL"], key, os.getenv("LLM_CA_FILE"), extra=extra,
-                  gap=float(os.getenv("LLM_GAP", "0")))
+    client = Client(url, os.environ["LLM_MODEL"], key, os.getenv("LLM_CA_FILE"), extra=extra,
+                    gap=float(os.getenv("LLM_GAP", "0")))
+    client.max_tokens = int(os.getenv("LLM_MAX_TOKENS", "4096"))   # raise for models that think by default
+    return client
