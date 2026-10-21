@@ -23,8 +23,10 @@ import importlib
 
 
 def features_of(cond):
-    if cond in ("B", "C"):
+    if cond in ("B", "C", "P", "V", "R"):
         return ()
+    if cond in ("RH", "HS", "RS"):          # RH: run_python + harness; HS/RS: the same plus a skill file
+        return hx.FEATURES
     if cond == "H":
         return hx.FEATURES
     if cond.startswith("H-"):
@@ -37,7 +39,9 @@ def features_of(cond):
 def run_one(client, task, cond, rep, out):
     tag = f"{task['id']}__{cond}__{rep}"
     ws, verify = None, None
-    if task["tools"] == "erp":
+    if task["tools"] == "none":
+        tools = env.python_tool(out / "ws" / tag) if cond in ("R", "RH", "RS") else {}
+    elif task["tools"] == "erp":
         tools = env.ERP_TOOLS
     elif task["tools"] == "doc":
         tools = env.doc_tools(task["docs"])
@@ -50,8 +54,12 @@ def run_one(client, task, cond, rep, out):
             return r["exit_code"] == 0, r["output"][-1200:]
     start = time.monotonic()
     try:
-        res = hx.run(client, task["prompt"], tools, features=features_of(cond), control=(cond == "C"),
-                     contract=task.get("contract"), verify=verify, trace=out / "traces" / f"{tag}.json")
+        if cond == "V":
+            res = vote(client, task, out / "traces" / tag)
+        else:
+            res = hx.run(client, task["prompt"], tools, features=features_of(cond), control=(cond == "C"),
+                         contract=task.get("contract"), verify=verify, trace=out / "traces" / f"{tag}.json",
+                         system=system_for(task, cond))
     except Exception as e:  # noqa: BLE001 - anything that escapes the loop is an infrastructure failure
         return {"task": task["id"], "domain": task["domain"], "cond": cond, "rep": rep, "pass": False,
                 "turns": 0, "calls": 0, "events": [], "error": f"connection: {type(e).__name__}: {e}"[:200],
@@ -63,6 +71,52 @@ def run_one(client, task, cond, rep, out):
     return {"task": task["id"], "domain": task["domain"], "cond": cond, "rep": rep, "pass": ok,
             "turns": res["turns"], "calls": res["calls"], "events": res["events"], "error": res["error"],
             "edit_failures": ws.edit_failures if ws else 0, "seconds": round(time.monotonic() - start, 1)}
+
+
+SKILLS = Path(__file__).resolve().parent / "skills"
+SKILL_FILE = {"erp": "erp.md", "code": "code.md", "doc": "doc.md", "none": "python.md"}
+
+
+def system_for(task, cond):
+    """HS and RS add the skill file of the task's tool family to the system prompt; others use the plain one."""
+    if cond not in ("HS", "RS"):
+        return hx.SYSTEM
+    text = (SKILLS / SKILL_FILE[task["tools"]]).read_text(encoding="utf-8").strip()
+    return hx.SYSTEM + "\n\n# How to work with these tools\n" + text
+
+
+def _answer_key(answer, contract):
+    """Normalized answer used to compare samples: JSON values with numbers normalized, else stripped text."""
+    if contract and contract.get("type") == "json":
+        parsed = grade.parse_json(answer or "")
+        if parsed is None:
+            return None
+        norm = {k: (grade.num(v) if grade.num(v) is not None else
+                    sorted(map(str, v)) if isinstance(v, list) else " ".join(str(v).split()))
+                for k, v in parsed.items()}
+        return json.dumps(norm, ensure_ascii=False, sort_keys=True)
+    return " ".join((answer or "").split()) or None
+
+
+def vote(client, task, trace_prefix, n=3):
+    """Majority vote over up to n independent answers; stops early when the first two agree."""
+    answers, keys, turns, error = [], [], 0, None
+    for i in range(n):
+        r = hx.run(client, task["prompt"], {}, trace=trace_prefix.with_name(f"{trace_prefix.name}_s{i}.json"))
+        turns += r["turns"]
+        error = error or r["error"]
+        answers.append(r["answer"])
+        keys.append(_answer_key(r["answer"], task.get("contract")))
+        if i == 1 and keys[0] is not None and keys[0] == keys[1]:
+            break
+    counts = {}
+    for k in keys:
+        if k is not None:
+            counts[k] = counts.get(k, 0) + 1
+    best = max(counts, key=lambda k: (counts[k], -keys.index(k))) if counts else None
+    pick = answers[keys.index(best)] if best is not None else answers[0]
+    return {"answer": pick, "turns": turns, "calls": 0, "events": [f"vote_samples={len(answers)}"],
+            "error": error if pick is None else None}
 
 
 def infra(r):

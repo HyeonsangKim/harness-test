@@ -5,6 +5,7 @@ exception. How that error reaches the model is the harness's job, not the tool's
 Standard library only.
 """
 import ast
+import os
 import operator
 import random
 import shutil
@@ -250,3 +251,30 @@ def doc_tools(docs):
         "read_document": (spec("read_document", "Read a document. Long documents come in chunks; use next_offset to continue.",
                                {"doc_id": STR, "offset": INT, "length": INT}, ["doc_id"]), read_document),
     }
+
+
+# ---------------------------------------------------------------- one general tool: run Python
+
+def python_tool(workdir):
+    """A single general-purpose action for tasks without domain tools.
+    Runs a standard-library Python program in its own folder with a 20 s limit, no inherited
+    environment variables (so no keys), isolated mode (-I). This prevents accidents; it is not a security sandbox."""
+    root = Path(workdir)
+    root.mkdir(parents=True, exist_ok=True)
+    counter = {"n": 0}
+    keep = {k: os.environ[k] for k in ("PATH", "SYSTEMROOT", "TEMP", "TMP") if k in os.environ}
+
+    def run_python(code):
+        counter["n"] += 1
+        path = root / f"snippet_{counter['n']:02d}.py"
+        path.write_text(str(code), encoding="utf-8")
+        try:
+            r = subprocess.run([sys.executable, "-I", "-X", "utf8", path.name], cwd=root, env=keep,
+                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20)
+            return {"exit_code": r.returncode, "stdout": r.stdout[-4000:], "stderr": r.stderr[-2000:]}
+        except subprocess.TimeoutExpired:
+            return {"exit_code": -1, "stdout": "", "stderr": "timeout after 20s"}
+
+    return {"run_python": (spec("run_python", "Run a Python 3 program (standard library only) and return its exit code, "
+                                "stdout and stderr. Use print() to show results. Each call starts fresh.",
+                                {"code": STR}, ["code"]), run_python)}

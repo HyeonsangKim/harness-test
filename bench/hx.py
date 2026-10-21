@@ -50,8 +50,9 @@ class Client:
         return re.sub(r"https?://\S+|\b\d{1,3}(\.\d{1,3}){3}(:\d+)?\b", "<addr>", text)
 
     def chat(self, messages, tools, max_tokens=4096):
-        body = {"model": self.model, "messages": messages, "max_tokens": max_tokens,
-                "tools": [{"type": "function", "function": t} for t in tools], "tool_choice": "auto", **self.extra}
+        body = {"model": self.model, "messages": messages, "max_tokens": max_tokens, **self.extra}
+        if tools:   # some servers reject an empty tools list, so plain chat sends none
+            body.update(tools=[{"type": "function", "function": t} for t in tools], tool_choice="auto")
         data = json.dumps(body, ensure_ascii=False).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if self.key:
