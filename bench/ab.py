@@ -19,7 +19,7 @@ from pathlib import Path
 import env
 import grade
 import hx
-import tasks as T
+import importlib
 
 
 def features_of(cond):
@@ -70,7 +70,8 @@ def cmd_run(a):
     (out / "traces").mkdir(parents=True, exist_ok=True)
     extra = json.loads(os.getenv("LLM_EXTRA", "{}"))
     client = hx.client_from_env(extra)
-    chosen = [t for t in T.TASKS if t["split"] == a.split and (not a.tasks or t["id"] in a.tasks.split(","))]
+    all_tasks = importlib.import_module(a.taskfile).TASKS
+    chosen = [t for t in all_tasks if t["split"] == a.split and (not a.tasks or t["id"] in a.tasks.split(","))]
     done_path = out / "results.jsonl"
     done, keep = set(), []
     if done_path.exists():
@@ -83,7 +84,7 @@ def cmd_run(a):
     jobs = [(t, c, r) for t in chosen for c in a.conds.split(",") for r in range(a.rep) if (t["id"], c, r) not in done]
     random.Random(a.seed).shuffle(jobs)          # interleave conditions so server drift hits all equally
     jobs.sort(key=lambda j: j[2])                # finish every task x condition of one repeat before the next
-    meta = {"model": os.environ["LLM_MODEL"], "extra": extra, "gap": os.getenv("LLM_GAP", "0"), "split": a.split, "conds": a.conds, "rep": a.rep,
+    meta = {"taskfile": a.taskfile, "model": os.environ["LLM_MODEL"], "extra": extra, "gap": os.getenv("LLM_GAP", "0"), "split": a.split, "conds": a.conds, "rep": a.rep,
             "tasks": [t["id"] for t in chosen], "started": time.strftime("%Y-%m-%d %H:%M:%S")}
     (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"{len(jobs)} runs to do ({len(done)} already done)")
@@ -197,6 +198,7 @@ def main():
     r.add_argument("--workers", type=int, default=4)
     r.add_argument("--tasks", default="")
     r.add_argument("--seed", type=int, default=7)
+    r.add_argument("--taskfile", default="tasks", help="task module: tasks or tasks_gen")
     q = sub.add_parser("report")
     q.add_argument("--out", required=True)
     a = p.parse_args()
