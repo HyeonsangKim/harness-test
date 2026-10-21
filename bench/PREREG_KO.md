@@ -139,3 +139,13 @@
   - `env.py`: `python_tool`을 더했다.
   - `ab.py`: 조건 P, V, R, RH, HS, RS를 더했다.
   - 기존 조건 B, C, H의 동작은 바뀌지 않는다.
+
+## 두 번째 로컬 모델 등록: Gemma 4 E4B (2026-10-21 11:40, 실행 전)
+
+- **목적:** "하네스 효과가 특정 모델에만 해당하지 않는가"를 본다. 계열이 다른 모델(구글 Gemma)에 같은 과제와 같은 코드를 쓴다.
+- **모델:** `unsloth/gemma-4-E4B-it-GGUF`의 `gemma-4-E4B-it-Q8_0.gguf`(8.19GB). SHA-256 `f8854aa4…`이 Hugging Face 등록값과 일치한다. 서버는 llama.cpp 0.7.0 `--jinja`다.
+- **요청 설정:**
+  - 샘플링은 Gemma 4 공식 모델 카드의 권장값 `temperature=1.0, top_p=0.95, top_k=64`를 쓴다.
+  - 사고 모드는 끈다. 시스템 프롬프트에 사고 표시 토큰을 넣지 않고, `chat_template_kwargs.enable_thinking=false`를 준다.
+- **과제와 조건:** 도구 없는 과제 30개, P·C·V·R·RH·RS, 2회. Qwen 실행이 끝난 뒤 서버를 바꿔 돌린다.
+- **통계와 판정 기준:** 위와 같다.
