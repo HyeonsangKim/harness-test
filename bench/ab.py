@@ -82,6 +82,7 @@ def cmd_run(a):
         done_path.write_text("".join(l + "\n" for l in keep), encoding="utf-8")
     jobs = [(t, c, r) for t in chosen for c in a.conds.split(",") for r in range(a.rep) if (t["id"], c, r) not in done]
     random.Random(a.seed).shuffle(jobs)          # interleave conditions so server drift hits all equally
+    jobs.sort(key=lambda j: j[2])                # finish every task x condition of one repeat before the next
     meta = {"model": os.environ["LLM_MODEL"], "extra": extra, "gap": os.getenv("LLM_GAP", "0"), "split": a.split, "conds": a.conds, "rep": a.rep,
             "tasks": [t["id"] for t in chosen], "started": time.strftime("%Y-%m-%d %H:%M:%S")}
     (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
