@@ -301,14 +301,16 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
         return out
 
     used = sum(1 for m in messages if m["role"] == "assistant")
-    bad_calls = 0
+    bad_calls, room = 0, None
     for turn in range(used, max_turns):
         save(False)
         try:
-            resp = client.chat(messages, specs)
+            resp = client.chat(messages, specs, max_tokens=room)
         except RuntimeError as e:
             if str(e).startswith("bad_tool_call") and "recover" in feats and bad_calls < 2:
+                # a tool call cut off by the output limit: give the next reply twice the room, like length_retry
                 bad_calls += 1
+                room = min((room or getattr(client, "max_tokens", 4096)) * 2, 32768)
                 events.append("bad_call")
                 messages.append({"role": "user", "content": (
                     "[harness] Your last reply could not be read: the tool call was cut off or malformed, "
