@@ -16,6 +16,7 @@ Harness features (each is generic: none knows about a specific task):
 """
 import difflib
 import getpass
+import http.client
 import json
 import os
 import re
@@ -66,7 +67,7 @@ class Client:
                 if e.code not in (429, 500, 502, 503, 504) or attempt == 5:
                     body = " ".join(e.read().decode("utf-8", "replace").split())[:200]
                     raise RuntimeError(self.redact(f"http_{e.code}: {body}"))
-            except (urllib.error.URLError, TimeoutError) as e:
+            except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.HTTPException) as e:
                 if attempt == 5:
                     raise RuntimeError(self.redact(f"connection: {e}"))
             time.sleep(min(5 * 2 ** attempt, 60))

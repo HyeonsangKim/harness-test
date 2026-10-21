@@ -49,8 +49,13 @@ def run_one(client, task, cond, rep, out):
             r = ws.run_tests()
             return r["exit_code"] == 0, r["output"][-1200:]
     start = time.monotonic()
-    res = hx.run(client, task["prompt"], tools, features=features_of(cond), control=(cond == "C"),
-                 contract=task.get("contract"), verify=verify, trace=out / "traces" / f"{tag}.json")
+    try:
+        res = hx.run(client, task["prompt"], tools, features=features_of(cond), control=(cond == "C"),
+                     contract=task.get("contract"), verify=verify, trace=out / "traces" / f"{tag}.json")
+    except Exception as e:  # noqa: BLE001 - anything that escapes the loop is an infrastructure failure
+        return {"task": task["id"], "domain": task["domain"], "cond": cond, "rep": rep, "pass": False,
+                "turns": 0, "calls": 0, "events": [], "error": f"connection: {type(e).__name__}: {e}"[:200],
+                "edit_failures": 0, "seconds": round(time.monotonic() - start, 1)}
     try:
         ok = bool(task["check"](res["answer"] or "", grade.parse_json(res["answer"] or ""), ws))
     except Exception as e:  # noqa: BLE001 - a crashing check is a failed answer
