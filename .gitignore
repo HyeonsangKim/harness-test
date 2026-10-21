@@ -1,3 +1,5 @@
 .DS_Store
 probe_out/
 __pycache__/
+bench/runs/*/ws/
+bench/*.log

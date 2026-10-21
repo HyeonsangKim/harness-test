@@ -1,19 +1,29 @@
-# 사내 실행 가이드 (probe.py, behavior.py)
+# 사내 실행 가이드 (bench/ab.py, probe.py, behavior.py)
 
-목적: 사내 게이트웨이의 GLM-5.3-Flash가 도구 호출을 제대로 하는지, 어떤 옵션을 받는지, 얼마나 빠른지, 한국어가 토큰을 얼마나 쓰는지 실측해 **모델 프로필 0판**을 만든다(probe.py). 그리고 작은 문제 7종으로 모델이 일을 어떻게 하는지 맛본다(behavior.py). 하네스 성능을 증명하는 테스트가 아니라 그 전제 조건을 확인하는 테스트다.
+목적은 두 가지다.
+- **하네스 A/B 시험** (`bench/ab.py`, 14절): 같은 GLM-5.3-Flash에 하네스를 켜고 끈 성공률을 업무 과제 30개로 비교한다. **지금 가장 중요한 시험이다.**
+- **모델 프로필** (`probe.py`, `behavior.py`): 게이트웨이와 모델의 성질(옵션, 도구 호출, 지연, 한국어 토큰)을 잰다. 연결 시험과 본 시험은 끝났고, 사고량 비교만 호출 한도(429)로 막혀 있다.
 
-**한 번에 하기** (환경변수 설정은 4절, 처음이면 2절부터):
+**이번에 할 것** (환경변수 설정은 4절, 처음이면 2절부터):
 
 ```powershell
 git pull
-python probe.py --n 10        # 약 45회 호출. 끝에 요약 10줄 (9절)
-python behavior.py --rep 3    # 약 55회 호출. 끝에 요약 8줄 (12절)
+cd bench
+python ab.py run --out runs\glm-eval --split eval --conds B,H --rep 1 --workers 2
 ```
 
-- 게이트웨이가 `429`(호출 한도 초과)를 주면 스크립트가 알아서 기다렸다 다시 보낸다. 재시도까지 실패한 호출이 3번 나오면 나머지 호출은 건너뛰고 요약을 출력한다.
-- 이때 요약의 `RL` 줄에 거절 사유가 남는다. 이어서 할 일은 8절 표의 `429` 줄을 따른다.
+- 키 입력 창이 한 번 뜬다. 약 60회 실행, 모델 호출 약 300~400회.
+- 끝나면 화면 끝에 결과 표가 나온다. 14절의 "옮길 것"만 옮긴다.
+- 시간이 남고 429가 없었으면 같은 폴더로 범위를 넓혀 이어서 돌린다. 이미 끝난 실행은 건너뛴다.
 
-전달할 것은 두 스크립트의 `== copy these lines` 아래 줄들뿐이다. 키는 스크립트마다 한 번씩 입력한다.
+  ```powershell
+  python ab.py run --out runs\glm-eval --split eval --conds B,C,H --rep 3 --workers 2
+  ```
+
+- 429가 나왔으면 다음처럼 한다.
+  1. 결과의 `error` 줄에 적힌 거절 사유를 옮긴다.
+  2. `$env:LLM_GAP = "6"`을 설정하고 같은 명령을 다시 실행한다. 한도에 막혀 실패한 실행만 다시 돈다.
+- (선택) 그다음 `cd ..` 후 `python probe.py --n 1 --burst 1`을 실행하고, 요약 10줄 중 `T2`와 `RL` 두 줄만 옮긴다. 사고량 옵션이 먹히는지와 429 사유가 나온다.
 
 ## 0. 준비물
 
@@ -283,3 +293,55 @@ python -m pip download requests --no-deps -d $env:TEMP\piptest
 | `Could not find a version` / `ConnectionError` / 시간 초과 | 설치 불가 |
 
 결과 한 줄(가능/불가)과, 보였다면 `index-url`이 사내 주소인지 외부 주소인지만 전달한다. 주소 자체는 적지 않는다.
+
+## 14. 하네스 A/B 시험: bench/ab.py
+
+같은 모델, 같은 과제, 같은 도구에서 하네스만 켜고 끈다. 과제, 채점, 통계 방법은 실행 전에 `bench/PREREG_KO.md`에 등록해 두었다.
+
+| 조건 | 내용 |
+|---|---|
+| `B` | 하네스 없음. 기본 도구 루프 |
+| `C` | B + "다시 확인해 달라"를 한 번 더 묻는 대조군 |
+| `H` | 하네스 v0 기능 7개 전부 |
+
+과제는 eval 30개(ERP 14, 코드 8, 문서 8)다. 가짜 ERP 표, 작은 파이썬 프로젝트, 계약서와 회의록 같은 문서로 되어 있다.
+
+- 코드 과제는 모델이 고친 코드를 `runs\...\ws\` 안에서만 실행한다. 한 번에 20초 제한이 있다.
+- 사내 데이터는 쓰지 않는다. 과제는 전부 가짜 데이터다.
+
+**실행**
+
+```powershell
+cd bench
+python ab.py run --out runs\glm-eval --split eval --conds B,H --rep 1 --workers 2
+python ab.py report --out runs\glm-eval      # 표만 다시 보기
+```
+
+- 중간에 끊겨도(Ctrl+C, 창 닫힘) 같은 명령을 다시 실행하면 남은 것만 이어서 돈다.
+- 화면의 `[12/60] erp_e03 H rep0 PASS ...` 같은 줄은 진행 상황이다. 옮기지 않는다.
+
+**옮길 것: 마지막에 출력되는 표 전체** (`runs\glm-eval\report.txt`에도 저장된다)
+
+```
+cond          pass  pass^k   code    doc    erp  turns    sec  errors
+B            53.3%   53.3%    50%    63%    50%    5.1   21.0       0
+H            70.0%   70.0%    75%    75%    64%    5.6   24.2       0
+
+H vs B: +16.7% (95% CI +3.3% .. +30.0%), tasks better/worse 6/1 sign p=0.125; runs only-H/only-B 6/1 McNemar p=0.125
+
+events H: budget_warning=2, invalid_args=9, recheck_contract=4, recheck_verify=3, repeat=5
+error B: max_turns x2
+```
+
+(위 숫자는 형식 예시다. 실제 결과가 아니다.)
+
+| 줄 | 뜻 |
+|---|---|
+| `cond` 표 | 조건별 성공률, pass^k(k번 다 성공한 과제 비율), 업무별 성공률, 평균 턴 수, 평균 초, 오류 수 |
+| `H vs B` | 하네스를 켜서 오른 성공률과 95% 신뢰구간. 구간 하한이 0보다 크면 "개선 확인" |
+| `events H` | 하네스 기능이 실제로 몇 번 작동했는지 |
+| `error` | 실패 사유별 건수. `http_429: ...`면 거절 사유가 함께 나온다(키·주소는 자동으로 가려진다) |
+| `infra:` | 게이트웨이 오류로 점수에서 빠진 실행 수. 같은 명령을 다시 돌리면 재시도한다 |
+
+- `runs` 폴더는 사내에 보관한다. 대화 원문(`traces`)이 들어 있다.
+- 가짜 데이터라 외부 반출 문제는 없지만, 옮길 것은 위 표뿐이다.

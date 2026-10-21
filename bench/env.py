@@ -1,0 +1,252 @@
+"""Fake work environment for the A/B bench: ERP database, code workspace, documents.
+
+Tools behave like ordinary internal APIs: on bad input they raise a normal Python
+exception. How that error reaches the model is the harness's job, not the tool's.
+Standard library only.
+"""
+import ast
+import operator
+import random
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+# ---------------------------------------------------------------- ERP data
+
+def build_db(seed=2026):
+    rnd = random.Random(seed)
+    depts = [("D10", "영업팀"), ("D20", "구매팀"), ("D30", "생산팀"), ("D40", "연구소"), ("D50", "경영지원팀")]
+    vendor_names = ["(주)한빛상사", "대성산업", "(주)미래테크", "동해물산", "(주)서진정밀", "우리오피스",
+                    "(주)태광기공", "신라물류", "(주)온누리IT", "청솔인쇄", "(주)금강화학", "백두건설"]
+    vendors = [{"vendor_id": f"V{i + 1:03d}", "name": n, "biz_no": f"{rnd.randint(100, 899)}-{rnd.randint(10, 99)}-{rnd.randint(10000, 99999)}",
+                "status": "suspended" if i in (3, 9) else "active"} for i, n in enumerate(vendor_names)]
+    accounts = ["소모품비", "외주용역비", "여비교통비", "접대비", "수선비", "지급수수료"]
+
+    def vouchers(year, n, prefix):
+        rows = []
+        for i in range(n):
+            month = rnd.randint(1, 9)
+            rows.append({
+                "voucher_id": f"{prefix}-{year}-{i + 1:04d}",
+                "date": f"{year}-{month:02d}-{rnd.randint(1, 28):02d}",
+                "dept_id": rnd.choice(depts)[0],
+                "vendor_id": rnd.choice(vendors)["vendor_id"],
+                "account": rnd.choice(accounts),
+                "amount": rnd.randint(5, 500) * 10000,
+                "status": rnd.choices(["미결", "승인", "반려"], [3, 6, 1])[0],
+            })
+        return rows
+
+    item_names = ["볼트 M8", "볼트 M10", "너트 M8", "너트 M10", "와셔 8mm", "베어링 6204", "베어링 6205",
+                  "V벨트 A42", "체인 #40", "스프로킷 40T", "오일씰 30x47", "O링 P20", "그리스 2kg",
+                  "절삭유 18L", "드릴 5mm", "드릴 8mm", "엔드밀 10mm", "장갑 코팅", "안전화 260", "보안경",
+                  "케이블타이 200mm", "절연테이프", "퓨즈 10A", "릴레이 24V", "근접센서 M12", "PLC 입력모듈",
+                  "서보모터 400W", "감속기 1:10", "에어실린더 32x100", "솔레노이드밸브 5포트"]
+    items = [{"item_code": f"ITM-{i + 1:04d}", "name": n, "unit_price": rnd.randint(2, 900) * 100,
+              "safety_stock": rnd.choice([10, 20, 30, 50, 100])} for i, n in enumerate(item_names)]
+    stock = [{"item_code": it["item_code"], "warehouse": w, "qty": rnd.randint(0, 120)}
+             for it in items for w in ("본사창고", "평택창고")]
+    customers = ["삼원전자", "(주)대한모터스", "한결식품", "(주)새봄유통", "태성건설", "(주)누리바이오", "동방기계"]
+    receivables = []
+    for i in range(28):
+        m = rnd.randint(3, 9)
+        amount = rnd.randint(10, 900) * 10000
+        paid = rnd.choice([0, 0, amount, amount, rnd.randint(1, amount // 10000) * 10000])
+        receivables.append({"invoice_id": f"INV-{i + 1:04d}", "customer": rnd.choice(customers),
+                            "issue_date": f"2026-{m:02d}-{rnd.randint(1, 28):02d}",
+                            "due_date": f"2026-{min(m + 1, 12):02d}-{rnd.randint(1, 28):02d}",
+                            "amount": amount, "paid_amount": paid})
+    return {
+        "departments": {"desc": "부서 코드와 부서명", "rows": [{"dept_id": d, "name": n} for d, n in depts]},
+        "vendors": {"desc": "거래처 목록 (status: active / suspended)", "rows": vendors},
+        "vouchers": {"desc": "2026년 지출 전표 (status: 미결 / 승인 / 반려, amount: 원)", "rows": vouchers(2026, 240, "JV")},
+        "vouchers_backup_2023": {"desc": "2023년 전표 백업본 (조회 전용, 현재 업무에 쓰지 않음)", "rows": vouchers(2023, 60, "JV")},
+        "items": {"desc": "품목 마스터 (unit_price: 원, safety_stock: 안전재고 수량)", "rows": items},
+        "stock": {"desc": "창고별 현재 재고 수량", "rows": stock},
+        "receivables": {"desc": "2026년 매출채권 (amount: 청구액, paid_amount: 입금액, 원)", "rows": receivables},
+    }
+
+
+DB = build_db()
+
+OPS = {"=": operator.eq, "!=": operator.ne, ">": operator.gt, ">=": operator.ge, "<": operator.lt,
+       "<=": operator.le, "contains": lambda a, b: str(b) in str(a), "startswith": lambda a, b: str(a).startswith(str(b))}
+
+
+def _match(row, filters):
+    for f in filters or []:
+        col, op, val = f["column"], f["op"], f["value"]
+        cell = row[col]                     # KeyError on unknown column
+        if isinstance(cell, int) and not isinstance(val, int):
+            val = int(val)                  # ValueError on non-numeric text
+        if not OPS[op](cell, val):          # KeyError on unknown op
+            return False
+    return True
+
+
+def _rows(table, filters):
+    return [r for r in DB[table]["rows"] if _match(r, filters)]   # KeyError on unknown table
+
+
+def list_tables():
+    return [{"table": t, "description": v["desc"], "rows": len(v["rows"])} for t, v in DB.items()]
+
+
+def describe_table(table):
+    return {"table": table, "columns": list(DB[table]["rows"][0])}
+
+
+def query(table, filters=None, columns=None, order_by=None, descending=False, limit=20, offset=0):
+    limit = int(limit)
+    if limit > 20:
+        raise ValueError("limit must be <= 20")
+    rows = _rows(table, filters)
+    if order_by:
+        rows = sorted(rows, key=lambda r: r[order_by], reverse=bool(descending))
+    page = rows[int(offset):int(offset) + limit]
+    if columns:
+        page = [{c: r[c] for c in columns} for r in page]
+    nxt = int(offset) + limit
+    return {"rows": page, "total": len(rows), "next_offset": nxt if nxt < len(rows) else None}
+
+
+def aggregate(table, op, column=None, filters=None, group_by=None):
+    rows = _rows(table, filters)
+    groups = {}
+    for r in rows:
+        groups.setdefault(r[group_by] if group_by else "all", []).append(r)
+    out = []
+    for g, rs in sorted(groups.items()):
+        vals = [r[column] for r in rs] if column else []
+        value = {"count": lambda: len(rs), "sum": lambda: sum(vals), "avg": lambda: round(sum(vals) / len(vals), 2),
+                 "max": lambda: max(vals), "min": lambda: min(vals)}[op]()
+        out.append({"group": g, "value": value})
+    return out
+
+
+_BIN = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv,
+        ast.FloorDiv: operator.floordiv, ast.Mod: operator.mod, ast.Pow: operator.pow}
+
+
+def calculate(expression):
+    def ev(n):
+        if isinstance(n, ast.Expression):
+            return ev(n.body)
+        if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)):
+            return n.value
+        if isinstance(n, ast.BinOp):
+            return _BIN[type(n.op)](ev(n.left), ev(n.right))
+        if isinstance(n, ast.UnaryOp) and isinstance(n.op, ast.USub):
+            return -ev(n.operand)
+        raise ValueError("unsupported expression")
+    return ev(ast.parse(str(expression).replace(",", ""), mode="eval"))
+
+
+STR, INT = {"type": "string"}, {"type": "integer"}
+FILTERS = {"type": "array", "description": "Conditions combined with AND.",
+           "items": {"type": "object", "properties": {
+               "column": STR, "op": {"type": "string", "enum": list(OPS)}, "value": {}},
+               "required": ["column", "op", "value"]}}
+
+
+def spec(name, desc, props=None, required=None):
+    return {"name": name, "description": desc,
+            "parameters": {"type": "object", "properties": props or {}, "required": required or []}}
+
+
+ERP_TOOLS = {
+    "list_tables": (spec("list_tables", "List ERP tables with a short description."), list_tables),
+    "describe_table": (spec("describe_table", "Show the column names of a table.", {"table": STR}, ["table"]), describe_table),
+    "query": (spec("query", "Read rows from a table. Returns at most `limit` (<=20) rows plus `total` and `next_offset` for paging.",
+                   {"table": STR, "filters": FILTERS, "columns": {"type": "array", "items": STR},
+                    "order_by": STR, "descending": {"type": "boolean"}, "limit": INT, "offset": INT}, ["table"]), query),
+    "aggregate": (spec("aggregate", "Compute count/sum/avg/max/min of a column over rows matching filters, optionally grouped by a column.",
+                       {"table": STR, "op": {"type": "string", "enum": ["count", "sum", "avg", "max", "min"]},
+                        "column": STR, "filters": FILTERS, "group_by": STR}, ["table", "op"]), aggregate),
+    "calculate": (spec("calculate", "Evaluate an arithmetic expression such as '1200000*0.1+300'.", {"expression": STR}, ["expression"]), calculate),
+}
+
+# ---------------------------------------------------------------- code workspace
+
+class Workspace:
+    """A throwaway project folder. Model-written code runs only here, 20 s limit."""
+
+    def __init__(self, root, files, test_cmd):
+        self.root = Path(root)
+        if self.root.exists():
+            shutil.rmtree(self.root)
+        self.root.mkdir(parents=True)
+        for rel, text in files.items():
+            (self.root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.root / rel).write_text(text, encoding="utf-8")
+        self.test_cmd = test_cmd
+        self.edit_failures = 0
+
+    def _path(self, path):
+        p = (self.root / str(path)).resolve()
+        if self.root.resolve() not in p.parents and p != self.root.resolve():
+            raise PermissionError("path outside the project")
+        return p
+
+    def list_files(self):
+        return sorted(str(p.relative_to(self.root)) for p in self.root.rglob("*")
+                      if p.is_file() and "__pycache__" not in p.parts)
+
+    def read_file(self, path):
+        return self._path(path).read_text(encoding="utf-8")   # FileNotFoundError
+
+    def replace_in_file(self, path, old, new):
+        p = self._path(path)
+        text = p.read_text(encoding="utf-8")
+        n = text.count(old) if old else 0
+        if n != 1:
+            self.edit_failures += 1
+            raise ValueError(f"old text found {n} times, must be exactly 1")
+        p.write_text(text.replace(old, new), encoding="utf-8")
+        return "ok"
+
+    def write_file(self, path, content):
+        p = self._path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content, encoding="utf-8")
+        return "ok"
+
+    def run_tests(self):
+        try:
+            r = subprocess.run([sys.executable, "-E", "-s", *self.test_cmd], cwd=self.root,
+                               capture_output=True, text=True, timeout=20)
+            return {"exit_code": r.returncode, "output": (r.stdout + r.stderr)[-2000:]}
+        except subprocess.TimeoutExpired:
+            return {"exit_code": -1, "output": "timeout after 20s"}
+
+    def tools(self):
+        return {
+            "list_files": (spec("list_files", "List files in the project."), self.list_files),
+            "read_file": (spec("read_file", "Read a text file in the project.", {"path": STR}, ["path"]), self.read_file),
+            "replace_in_file": (spec("replace_in_file", "Replace `old` with `new` in a file. `old` must appear exactly once.",
+                                     {"path": STR, "old": STR, "new": STR}, ["path", "old", "new"]), self.replace_in_file),
+            "write_file": (spec("write_file", "Create or overwrite a file with the given content.",
+                                {"path": STR, "content": STR}, ["path", "content"]), self.write_file),
+            "run_tests": (spec("run_tests", "Run the project's tests. Returns exit_code (0 = pass) and output."), self.run_tests),
+        }
+
+# ---------------------------------------------------------------- documents
+
+def doc_tools(docs):
+    """docs: {doc_id: (title, text)}"""
+    def list_documents():
+        return [{"doc_id": d, "title": t} for d, (t, _) in docs.items()]
+
+    def read_document(doc_id, offset=0, length=3000):
+        text = docs[doc_id][1]                      # KeyError on unknown id
+        offset, length = int(offset), min(int(length), 3000)
+        chunk = text[offset:offset + length]
+        nxt = offset + length
+        return {"doc_id": doc_id, "text": chunk, "next_offset": nxt if nxt < len(text) else None}
+
+    return {
+        "list_documents": (spec("list_documents", "List available documents."), list_documents),
+        "read_document": (spec("read_document", "Read a document. Long documents come in chunks; use next_offset to continue.",
+                               {"doc_id": STR, "offset": INT, "length": INT}, ["doc_id"]), read_document),
+    }
