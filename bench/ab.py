@@ -59,7 +59,7 @@ def run_one(client, task, cond, rep, out):
         else:
             res = hx.run(client, task["prompt"], tools, features=features_of(cond), control=(cond == "C"),
                          contract=task.get("contract"), verify=verify, trace=out / "traces" / f"{tag}.json",
-                         system=system_for(task, cond))
+                         system=system_for(task, cond), resume=ws is None)
     except Exception as e:  # noqa: BLE001 - anything that escapes the loop is an infrastructure failure
         return {"task": task["id"], "domain": task["domain"], "cond": cond, "rep": rep, "pass": False,
                 "turns": 0, "calls": 0, "events": [], "error": f"connection: {type(e).__name__}: {e}"[:200],
@@ -69,6 +69,7 @@ def run_one(client, task, cond, rep, out):
     except Exception as e:  # noqa: BLE001 - a crashing check is a failed answer
         ok, res["error"] = False, res["error"] or f"check: {type(e).__name__}"
     return {"task": task["id"], "domain": task["domain"], "cond": cond, "rep": rep, "pass": ok,
+            "tokens": res.get("tokens"),
             "turns": res["turns"], "calls": res["calls"], "events": res["events"], "error": res["error"],
             "edit_failures": ws.edit_failures if ws else 0, "seconds": round(time.monotonic() - start, 1)}
 
@@ -101,9 +102,12 @@ def _answer_key(answer, contract):
 def vote(client, task, trace_prefix, n=3):
     """Majority vote over up to n independent answers; stops early when the first two agree."""
     answers, keys, turns, error = [], [], 0, None
+    tokens = {"prompt": 0, "completion": 0}
     for i in range(n):
         r = hx.run(client, task["prompt"], {}, trace=trace_prefix.with_name(f"{trace_prefix.name}_s{i}.json"))
         turns += r["turns"]
+        for k in tokens:
+            tokens[k] += (r.get("tokens") or {}).get(k, 0)
         error = error or r["error"]
         answers.append(r["answer"])
         keys.append(_answer_key(r["answer"], task.get("contract")))
@@ -115,7 +119,7 @@ def vote(client, task, trace_prefix, n=3):
             counts[k] = counts.get(k, 0) + 1
     best = max(counts, key=lambda k: (counts[k], -keys.index(k))) if counts else None
     pick = answers[keys.index(best)] if best is not None else answers[0]
-    return {"answer": pick, "turns": turns, "calls": 0, "events": [f"vote_samples={len(answers)}"],
+    return {"answer": pick, "turns": turns, "calls": 0, "events": [f"vote_samples={len(answers)}"], "tokens": tokens,
             "error": error if pick is None else None}
 
 
@@ -211,7 +215,7 @@ def cmd_report(a):
     conds = sorted({r["cond"] for r in rows}, key=lambda c: (c != "B", c != "C", c != "H", c))
     domains = sorted({r["domain"] for r in rows})
     lines = []
-    hdr = f"{'cond':10} {'pass':>7} {'pass^k':>7} " + " ".join(f"{d:>6}" for d in domains) + f" {'turns':>6} {'sec':>6} {'errors':>7}"
+    hdr = f"{'cond':10} {'pass':>7} {'pass^k':>7} " + " ".join(f"{d:>6}" for d in domains) + f" {'turns':>6} {'ktok':>6} {'sec':>6} {'errors':>7}"
     lines.append(hdr)
     for c in conds:
         rs = [r for r in rows if r["cond"] == c]
@@ -221,7 +225,9 @@ def cmd_report(a):
         pk = statistics.mean(all(v) for v in by_task.values())
         dom = " ".join(f"{statistics.mean(r['pass'] for r in rs if r['domain'] == d):6.0%}" if any(r['domain'] == d for r in rs) else "     -" for d in domains)
         lines.append(f"{c:10} {statistics.mean(r['pass'] for r in rs):7.1%} {pk:7.1%} {dom} "
-                     f"{statistics.mean(r['turns'] for r in rs):6.1f} {statistics.mean(r['seconds'] for r in rs):6.1f} "
+                     f"{statistics.mean(r['turns'] for r in rs):6.1f} "
+                     f"{statistics.mean(sum((r.get('tokens') or {}).values()) for r in rs) / 1000:6.1f} "
+                     f"{statistics.mean(r['seconds'] for r in rs):6.1f} "
                      f"{sum(1 for r in rs if r['error']):7}")
     lines.append("")
     order = ("B", "P", "C", "H", "R", "RH")    # each condition is compared with every earlier base present

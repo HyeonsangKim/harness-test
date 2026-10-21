@@ -182,10 +182,11 @@ def _result_text(value):
 
 
 def run(client, task_prompt, tools, features=(), control=False, contract=None, verify=None,
-        max_turns=12, trace=None, history=None, system=SYSTEM):
+        max_turns=12, trace=None, history=None, system=SYSTEM, resume=False):
     """tools: {name: (spec, fn)}. verify: callable() -> (ok, message) or None.
     history: messages of earlier turns of the same conversation (multi-turn tasks).
-    Returns dict(answer, turns, calls, events, error, messages, executed)."""
+    trace: file written after every turn (a checkpoint). resume=True continues an unfinished trace.
+    Returns dict(answer, turns, calls, events, error, messages, executed, tokens)."""
     feats = set(features)
     specs = [spec for spec, _ in tools.values()]
     messages = list(history) if history else [{"role": "system", "content": system}]
@@ -194,6 +195,21 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
     seen, calls, events = {}, 0, []
     rechecks = {"contract": 0, "verify": 0, "evidence": 0, "control": 0}
     answer, error = None, None
+    tokens = {"prompt": 0, "completion": 0}
+    if resume and trace is not None and trace.exists():
+        saved = json.loads(trace.read_text(encoding="utf-8"))
+        if not saved.get("done", True):
+            messages, events = saved["messages"], saved["events"]
+            seen, calls, rechecks = saved["state"]["seen"], saved["state"]["calls"], saved["state"]["rechecks"]
+            tokens = saved.get("tokens", tokens)
+            events.append("resumed")
+
+    def save(done):
+        if trace is not None:
+            trace.write_text(json.dumps({"done": done, "messages": messages, "events": events, "error": error,
+                                         "tokens": tokens,
+                                         "state": {"seen": seen, "calls": calls, "rechecks": rechecks}},
+                                        ensure_ascii=False, indent=1), encoding="utf-8")
 
     def execute(name, args):
         nonlocal calls
@@ -227,12 +243,17 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                         "(list/describe tools can show valid ones), fix them and call again.")
             return prefix + msg
 
-    for turn in range(max_turns):
+    used = sum(1 for m in messages if m["role"] == "assistant")
+    for turn in range(used, max_turns):
+        save(False)
         try:
             resp = client.chat(messages, specs)
         except RuntimeError as e:
             error = str(e)
             break
+        usage = resp.get("usage") or {}
+        tokens["prompt"] += usage.get("prompt_tokens") or 0
+        tokens["completion"] += usage.get("completion_tokens") or 0
         msg = (resp.get("choices") or [{}])[0].get("message") or {}
         content = msg.get("content") or ""
         tcalls = msg.get("tool_calls") or []
@@ -295,11 +316,10 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
         messages.append({"role": "user", "content": feedback})
     else:
         error = error or "max_turns"
-    if trace is not None:
-        trace.write_text(json.dumps({"messages": messages, "events": events, "error": error},
-                                    ensure_ascii=False, indent=1), encoding="utf-8")
+    save(True)
     return {"answer": answer, "turns": sum(1 for m in messages if m["role"] == "assistant"),
-            "calls": calls, "events": events, "error": error, "messages": messages, "executed": executed}
+            "calls": calls, "events": events, "error": error, "messages": messages, "executed": executed,
+            "tokens": tokens}
 
 
 def client_from_env(extra=None):
