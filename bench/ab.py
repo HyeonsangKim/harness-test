@@ -30,8 +30,10 @@ def features_of(cond):
         return hx.FEATURES
     if cond in ("H1", "RH1"):               # harness v1 (stall note instead of repeat block)
         return hx.FEATURES_V1
-    if cond in ("RX", "RT", "RT4", "RT5"):         # tool-free harness v2 (RX), v3 (RT: + tables as files), v4 (RT4: + clean tables)
+    if cond in ("RX", "RT", "RT4", "RT5", "RT7", "RT5T"):         # tool-free harness v2 (RX), v3 (RT: + tables as files), v4 (RT4: + clean tables)
         return hx.FEATURES_NT2
+    if cond in ("RT6", "RT8"):              # + number check before autofinish (RT8 also with skill v4)
+        return hx.FEATURES_NT6
     if cond == "RT2":                       # RT + autofinish only after two programs agree
         return hx.FEATURES_NT3
     if cond == "RTB":                       # v3b: tables as files, no autofinish
@@ -57,7 +59,7 @@ def run_one(client, task, cond, rep, out):
             tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], finish_hint=True, tables=True)
         elif cond == "RT4":
             tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], finish_hint=True, clean_tables=True)
-        elif cond == "RT5":                 # RT4, but a tab table keeps its tab delimiter
+        elif cond in ("RT5", "RT6", "RT7", "RT8", "RT5T"):   # RT4, but a tab table keeps its tab delimiter
             tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], finish_hint=True, clean_tables="keep")
         elif cond == "RTB":
             tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], tables=True)
@@ -74,7 +76,7 @@ def run_one(client, task, cond, rep, out):
         def verify():
             r = ws.run_tests()
             return r["exit_code"] == 0, r["output"][-1200:]
-    if cond == "PT":                        # plain answer with the model's own long thinking turned on
+    if cond in ("PT", "RT5T"):              # the model's own long thinking turned on (RT5T: with the harness)
         client = copy.copy(client)
         client.extra = {**client.extra, **json.loads(os.getenv("LLM_THINK_EXTRA", "{}"))}
         client.max_tokens = 16000
@@ -106,9 +108,9 @@ SKILL_FILE = {"erp": "erp.md", "code": "code.md", "doc": "doc.md", "none": "pyth
 
 def system_for(task, cond):
     """HS and RS add the skill file of the task's tool family to the system prompt; others use the plain one."""
-    if cond not in ("HS", "RS", "RX", "RT", "RT2", "RT4", "RT5", "RTB"):
+    if cond not in ("HS", "RS", "RX", "RT", "RT2", "RT4", "RT5", "RT6", "RT7", "RT8", "RT5T", "RTB"):
         return hx.SYSTEM
-    name = {"RX": "python_v2.md", "RT": "python_v3.md", "RT2": "python_v3.md", "RT4": "python_v3.md", "RT5": "python_v3.md", "RTB": "python_v3b.md"}.get(cond, SKILL_FILE[task["tools"]])
+    name = {"RX": "python_v2.md", "RT": "python_v3.md", "RT2": "python_v3.md", "RT4": "python_v3.md", "RT5": "python_v3.md", "RT6": "python_v3.md", "RT7": "python_v4.md", "RT8": "python_v4.md", "RT5T": "python_v3.md", "RTB": "python_v3b.md"}.get(cond, SKILL_FILE[task["tools"]])
     text = (SKILLS / name).read_text(encoding="utf-8").strip()
     return hx.SYSTEM + "\n\n# How to work with these tools\n" + text
 

@@ -18,6 +18,7 @@ import difflib
 import getpass
 import http.client
 import json
+import math
 import os
 import re
 import ssl
@@ -37,6 +38,9 @@ FEATURES_V1 = ("recover", "validate", "stall", "budget", "contract", "verify", "
 FEATURES_NT2 = FEATURES_V1 + ("autofinish",)
 # RT2: autofinish only when a second, independent program prints the same answer (conditional offloading)
 FEATURES_NT3 = FEATURES_NT2 + ("crosscheck",)
+# v6: before autofinish, numbers written into the program that the request never mentions are pointed out once
+# (a small model tends to use a constant it knows, e.g. 7.48 gallons per cubic foot, instead of the given one)
+FEATURES_NT6 = FEATURES_NT2 + ("numcheck",)
 # v3b: tables as files but no autofinish (the model reviews the program output before answering)
 
 
@@ -53,6 +57,50 @@ def _norm_answer(line):
         else:
             out[k] = " ".join(str(v).split())
     return out
+
+
+_COMMON = {0.25, 0.5, 0.75, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 24, 28, 29, 30, 31, 52, 60, 100, 365, 366, 1000, 1440, 3600}
+
+
+def _numbers_in_text(text):
+    found = set()
+    for m in re.finditer(r"\d[\d,]*(?:\.\d+)?", text or ""):
+        tok = m.group().rstrip(",")
+        try:
+            v = float(tok.replace(",", ""))
+        except ValueError:
+            continue
+        found.update({v, v / 100, v * 100})          # 12.5% may be written as 0.125, 0.125 as 12.5
+        if "," in tok:                               # "1,234" could also be read as two numbers
+            for part in tok.split(","):
+                if part:
+                    found.add(float(part))
+    return found
+
+
+def foreign_numbers(code, request):
+    """Number literals in the program (not in comments or strings) that the request does not contain.
+    Small integers, powers of ten and common calendar/clock constants are allowed."""
+    import io
+    import tokenize
+    try:
+        toks = list(tokenize.generate_tokens(io.StringIO(code or "").readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return []
+    given = _numbers_in_text(request)
+    out = []
+    for t in toks:
+        if t.type != tokenize.NUMBER:
+            continue
+        try:
+            v = float(t.string.replace("_", "").rstrip("jJ"))
+        except ValueError:
+            continue
+        if v in _COMMON or (v > 0 and abs(math.log10(v) - round(math.log10(v))) < 1e-9):
+            continue
+        if not any(math.isclose(v, g, rel_tol=1e-9, abs_tol=1e-12) for g in given):
+            out.append(t.string)
+    return sorted(set(out), key=out.index)
 
 
 def finish_line(tool_output, contract):
@@ -354,6 +402,7 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
 
     used = sum(1 for m in messages if m["role"] == "assistant")
     bad_calls, room = 0, None
+    numchecked, last_code = False, ""
     for turn in range(used, max_turns):
         save(False)
         try:
@@ -427,6 +476,8 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                     args, out = None, "Error: arguments are not valid JSON"
                 if args is not None:
                     out = execute(fn.get("name", ""), args if isinstance(args, dict) else {"_": args})
+                    if isinstance(args, dict):
+                        last_code = str(args.get("code", ""))
                 if "budget" in feats and left == 2 and i == len(tcalls) - 1:
                     events.append("budget_warning")
                     out += "\n[harness] Only 2 turns are left. Finish now and give the final answer in the required format."
@@ -463,6 +514,18 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                         + "\n- second: " + json.dumps(key, ensure_ascii=False)
                         + "\nFind which one follows the rules in the request (check each rule), fix it if needed, "
                         "and reply with the final answer in the required format.")})
+                    continue
+            if finished is not None and "numcheck" in feats and not numchecked:
+                extra = foreign_numbers(last_code, task_prompt)
+                if extra:
+                    numchecked, finished = True, None
+                    events.append("numcheck")
+                    messages.append({"role": "user", "content": (
+                        "[harness] Before this answer is accepted: your program uses numbers that do not appear "
+                        "in the request: " + ", ".join(extra[:8]) + ". If the request gives a value or a rule "
+                        "for any of them, use the request's value instead. If a number really follows from the "
+                        "wording (for example a unit conversion the request implies), keep it. Then run the "
+                        "program again.")})
                     continue
             if finished is not None:
                 answer = finished
