@@ -8,22 +8,15 @@ def parse_json(text):
     if not text:
         return None
     text = re.sub(r"```(?:json)?", "", text)
+    dec = json.JSONDecoder()
     start = text.find("{")
     while start != -1:
-        depth = 0
-        for i in range(start, len(text)):
-            if text[i] == "{":
-                depth += 1
-            elif text[i] == "}":
-                depth -= 1
-                if depth == 0:
-                    try:
-                        value = json.loads(text[start:i + 1])
-                        if isinstance(value, dict):
-                            return value
-                    except ValueError:
-                        break
-                    break
+        try:
+            value, _ = dec.raw_decode(text, start)
+            if isinstance(value, dict):
+                return value
+        except ValueError:
+            pass
         start = text.find("{", start + 1)
     return None
 

@@ -59,7 +59,7 @@ def main():
     system = hx.SYSTEM + "\n\n# How to work with these tools\n" + (
         Path(__file__).with_name("skills") / "python_v3.md").read_text(encoding="utf-8").strip()
     client = hx.client_from_env(extra=json.loads(os.getenv("LLM_EXTRA", "{}")))
-    res = hx.run(client, text, tools, features=hx.FEATURES_NT2, contract=contract,
+    res = hx.run(client, text, tools, features=hx.FEATURES_NT7, contract=contract,
                  trace=run_dir / "trace.json", system=system, max_turns=a.max_turns)
     print(res["answer"] or "")
     print(f"[harness] turns={res['turns']} tokens={res.get('tokens')} events={res['events']} "

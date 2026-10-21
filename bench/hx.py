@@ -41,6 +41,10 @@ FEATURES_NT3 = FEATURES_NT2 + ("crosscheck",)
 # v6: before autofinish, numbers written into the program that the request never mentions are pointed out once
 # (a small model tends to use a constant it knows, e.g. 7.48 gallons per cubic foot, instead of the given one)
 FEATURES_NT6 = FEATURES_NT2 + ("numcheck",)
+# v7: the "answered without code" check only when a number is asked for or a table is given (general tasks:
+# writing, choices, yes/no are not pushed into code)
+FEATURES_NT7 = FEATURES_NT2 + ("evidence_auto",)
+FEATURES_NT7C = FEATURES_NT6 + ("evidence_auto",)
 # v3b: tables as files but no autofinish (the model reviews the program output before answering)
 
 
@@ -101,6 +105,19 @@ def foreign_numbers(code, request):
         if not any(math.isclose(v, g, rel_tol=1e-9, abs_tol=1e-12) for g in given):
             out.append(t.string)
     return sorted(set(out), key=out.index)
+
+
+def needs_code(request, contract):
+    """The request asks for a number, or carries a table: an answer without running code is likely a guess.
+    Writing, rewriting, choosing an option or answering yes/no does not need code."""
+    keys = (contract or {}).get("keys") or {}
+    if any(t in ("int", "float") for t in keys.values()):
+        return True
+    for d in ("\t", "|", ","):
+        rows = [l for l in (request or "").splitlines() if l.count(d) >= 2]
+        if len(rows) >= 3:
+            return True
+    return False
 
 
 def finish_line(tool_output, contract):
@@ -209,7 +226,9 @@ class Client:
             text = "".join(content) + "".join(c["function"]["arguments"] for c in calls.values())
             if len(text) - written >= 500:      # check now and then, not on every token
                 written = len(text)
-                if self._looping(text):
+                args = "".join(c["function"]["arguments"] for c in calls.values())
+                # a program that is mostly comments weighing readings ("But wait, ...") does not converge
+                if self._looping(text) or len(re.findall(r"\\n\s*#", args)) > 40:
                     finish = "loop"
                     break
         msg = {"role": "assistant", "content": "".join(content) or None}
@@ -298,7 +317,7 @@ def validate(name, args, tools):
 
 # ---------------------------------------------------------------- answer contract
 
-_PY = {"str": str, "int": int, "float": (int, float), "list": list, "bool": bool, "dict": dict}
+_PY = {"str": str, "int": int, "float": (int, float), "list": list, "bool": bool, "dict": dict, "any": object}
 
 
 def contract_problems(answer, contract):
@@ -537,7 +556,8 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
         if left == 0:
             break
         feedback = None
-        if "evidence" in feats and calls == 0 and not rechecks["evidence"]:
+        if "evidence" in feats and calls == 0 and not rechecks["evidence"] and (
+                "evidence_auto" not in feats or needs_code(task_prompt, contract)):
             rechecks["evidence"] = 1
             kind = "recheck_evidence"
             feedback = "[harness] You answered without using any tool. Look the facts up with the tools first, then answer."
