@@ -10,7 +10,8 @@
 git pull
 cd bench
 $env:LLM_MAX_TOKENS = "8192"
-uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool2 --out runs\glm-notool2 --split notool2 --conds P,RT4 --rep 1 --workers 2
+$env:LLM_STREAM = "1"
+uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool2 --out runs\glm-notool2 --split notool2 --conds P,RT12 --rep 1 --workers 2
 ```
 
 - 키 입력 창이 한 번 뜬다. 60회 실행, 모델 호출은 약 150회다.
@@ -18,7 +19,7 @@ uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool2 -
 - 시간이 남으면 처음 판(RH)도 같은 폴더로 돌린다. 이미 끝난 실행은 건너뛴다.
 
   ```powershell
-  uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool2 --out runs\glm-notool2 --split notool2 --conds P,RH,RT4 --rep 1 --workers 2
+  uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool2 --out runs\glm-notool2 --split notool2 --conds P,RH,RT12 --rep 1 --workers 2
   ```
 
 - 429가 나오면 `$env:LLM_GAP = "6"`을 설정하고 같은 명령을 다시 실행한다.
@@ -407,9 +408,10 @@ uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool --
 | 조건 | 내용 |
 |---|---|
 | `P` | 그냥 한 번 답한다. GLM은 서버 기본값대로 사고를 켠 채 답한다 |
-| `RT4` | 최종 하네스. 하네스가 질문 속 표를 정리된 CSV(`table_1.csv`)로 미리 잘라 두고, 모델은 파이썬 코드로 계산한다. 검사를 거친 뒤 코드 출력 마지막 줄이 답 형식이면 그대로 답으로 쓴다 |
+| `RT12` | 최종 하네스. 답 형식이 정해졌거나 표·숫자·코드가 필요한 요청이면, 질문 속 표를 정리된 파일(`table_1.csv`)로 미리 잘라 두고 모델이 파이썬 코드로 계산한다. 검사를 거친 뒤 코드 출력 마지막 줄이 답 형식이면 그대로 답으로 쓴다. 자유 글쓰기 요청은 하네스 없이 바로 답한다 |
 | `RH` (선택) | 처음 판. 파이썬과 검사만 쓰고 표 파일과 바로 끝내기는 없다 |
 
+- `LLM_STREAM=1`(권장): 응답을 흘려받는다. 글자가 오는 동안은 기다리고, 아무것도 안 올 때만 끊는다. 같은 글을 반복하는 폭주는 중간에 끊는다. 먼저 `python ask.py q.txt`로 한 번 돌려 오류 없이 답이 나오는지 확인한다. 게이트웨이가 흘려받기를 거부하면 이 변수를 빼고 돌린다.
 - `LLM_MAX_TOKENS=8192`: GLM은 사고를 길게 하면 출력 상한 4096에 걸려 답이 잘릴 수 있어 올린다.
 - `LLM_PY_TIMEOUT`: 모델이 쓴 코드 한 번의 실행 시간 상한(초, 기본 20). 끝나지 않는 반복문을 끊기 위한 것이고, 모델이 생각하는 시간과는 상관없다. 큰 파일을 다루는 업무라면 늘린다.
 - **주의:** `RT`와 `RH`는 모델이 쓴 파이썬 코드를 이 PC에서 실행한다.
@@ -421,5 +423,5 @@ uv run --offline --no-project --python 3.12 ab.py run --taskfile tasks_notool --
 
 **옮길 것:** 마지막 결과 표 전체.
 - `cond` 표: 성공률, 업무별 성공률, `ktok`(평균 천 토큰), `sec`(평균 초)
-- `RT4 vs P` 줄: 정확도 차이, 신뢰구간, `tokens x…`(토큰 비율)
+- `RT12 vs P` 줄: 정확도 차이, 신뢰구간, `tokens x…`(토큰 비율)
 - `error` 줄이 있으면 그것도
