@@ -27,6 +27,8 @@ def features_of(cond):
         return ()
     if cond in ("RH", "HS", "RS"):          # RH: run_python + harness; HS/RS: the same plus a skill file
         return hx.FEATURES
+    if cond in ("H1", "RH1"):               # harness v1 (stall note instead of repeat block)
+        return hx.FEATURES_V1
     if cond == "H":
         return hx.FEATURES
     if cond.startswith("H-"):

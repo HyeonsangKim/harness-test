@@ -28,6 +28,10 @@ import urllib.request
 import grade
 
 FEATURES = ("recover", "validate", "repeat", "budget", "contract", "verify", "evidence")
+# v1: "repeat" (flags and blocks identical calls) is replaced by "stall": a note only when the same call
+# returns exactly the same result again, never blocking. Found on BFCL: in stateful tools (cd, then ls)
+# identical calls are legitimate and the v0 note "result is unchanged" was false.
+FEATURES_V1 = ("recover", "validate", "stall", "budget", "contract", "verify", "evidence")
 SYSTEM = ("You are a work assistant for a Korean company. Use the tools to find facts; do not guess "
           "numbers or names. When you are done, reply with the final answer in exactly the format the user asked for.")
 
@@ -193,6 +197,7 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
     messages.append({"role": "user", "content": task_prompt})
     executed = []
     seen, calls, events = {}, 0, []
+    results, stalls = {}, {}
     rechecks = {"contract": 0, "verify": 0, "evidence": 0, "control": 0}
     answer, error = None, None
     tokens = {"prompt": 0, "completion": 0}
@@ -234,14 +239,23 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
         if name not in tools:
             return f"Error: unknown tool {name}"
         try:
-            return prefix + _result_text(tools[name][1](**args))
+            out = prefix + _result_text(tools[name][1](**args))
         except Exception as e:  # noqa: BLE001 - tools raise ordinary exceptions by design
-            msg = f"Error: {type(e).__name__}: {e}"
+            out = f"Error: {type(e).__name__}: {e}"
             if "validate" in feats:
                 events.append("tool_error")
-                msg += ("\n[harness] The tool failed with these arguments. Check names and values "
+                out += ("\n[harness] The tool failed with these arguments. Check names and values "
                         "(list/describe tools can show valid ones), fix them and call again.")
-            return prefix + msg
+            out = prefix + out
+        if "stall" in feats:
+            same = results.get(key) == out
+            results[key] = out
+            if same:
+                stalls[key] = stalls.get(key, 0) + 1
+                events.append("stall")
+                out += ("\n[harness] This exact call already returned exactly this result. "
+                        "Repeating it will not change anything: try a different step, or give the answer.")
+        return out
 
     used = sum(1 for m in messages if m["role"] == "assistant")
     for turn in range(used, max_turns):
