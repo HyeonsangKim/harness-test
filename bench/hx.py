@@ -35,7 +35,24 @@ FEATURES_V1 = ("recover", "validate", "stall", "budget", "contract", "verify", "
 # tool-free harness v2: v1 + "autofinish" (the last printed line of a program that already matches the
 # answer format becomes the reply, saving the final model turn).
 FEATURES_NT2 = FEATURES_V1 + ("autofinish",)
+# RT2: autofinish only when a second, independent program prints the same answer (conditional offloading)
+FEATURES_NT3 = FEATURES_NT2 + ("crosscheck",)
 # v3b: tables as files but no autofinish (the model reviews the program output before answering)
+
+
+def _norm_answer(line):
+    """Answer JSON with numbers normalized (rounded to 6 places) and lists sorted, for comparing two programs."""
+    parsed = grade.parse_json(line) or {}
+    out = {}
+    for k, v in parsed.items():
+        n = grade.num(v)
+        if n is not None:
+            out[k] = round(float(n), 6)
+        elif isinstance(v, list):
+            out[k] = sorted(" ".join(str(x).split()) for x in v)
+        else:
+            out[k] = " ".join(str(v).split())
+    return out
 
 
 def finish_line(tool_output, contract):
@@ -43,7 +60,7 @@ def finish_line(tool_output, contract):
     if not contract or contract.get("type") != "json":
         return None
     try:
-        res = json.loads(tool_output)
+        res, _ = json.JSONDecoder().raw_decode(tool_output)   # ignore harness notes appended after the result
     except ValueError:
         return None
     if not isinstance(res, dict) or res.get("exit_code") != 0:
@@ -221,6 +238,7 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
     results, stalls = {}, {}
     rechecks = {"contract": 0, "verify": 0, "evidence": 0, "control": 0}
     answer, error, finished = None, None, None
+    cross = {"first": None, "off": False, "code": None}
     tokens = {"prompt": 0, "completion": 0}
     if resume and trace is not None and trace.exists():
         saved = json.loads(trace.read_text(encoding="utf-8"))
@@ -286,6 +304,26 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
         except RuntimeError as e:
             error = str(e)
             break
+        cap = getattr(client, "max_tokens", 4096)
+        while True:   # the model ran out of output room before saying anything: give it more, up to 32k
+            ch = (resp.get("choices") or [{}])[0]
+            m0 = ch.get("message") or {}
+            if not (ch.get("finish_reason") == "length" and not m0.get("content") and not m0.get("tool_calls")
+                    and cap < 32768):
+                break
+            cap = min(cap * 2, 32768)
+            events.append("length_retry")
+            u0 = resp.get("usage") or {}
+            tokens["prompt"] += u0.get("prompt_tokens") or 0
+            tokens["completion"] += u0.get("completion_tokens") or 0
+            try:
+                resp = client.chat(messages, specs, max_tokens=cap)
+            except RuntimeError as e:
+                error = str(e)
+                resp = {}
+                break
+        if not resp:
+            break
         usage = resp.get("usage") or {}
         tokens["prompt"] += usage.get("prompt_tokens") or 0
         tokens["completion"] += usage.get("completion_tokens") or 0
@@ -318,8 +356,39 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                     events.append("budget_warning")
                     out += "\n[harness] Only 2 turns are left. Finish now and give the final answer in the required format."
                 messages.append({"role": "tool", "tool_call_id": tc.get("id") or f"call_{turn}_{i}", "content": out})
-                if "autofinish" in feats and finished is None:
+                if "autofinish" in feats and finished is None and not cross["off"]:
                     finished = finish_line(out, contract)
+                    code_now = json.dumps(args, sort_keys=True) if args is not None else ""
+                    if finished is not None and "crosscheck" in feats and cross["first"] is not None \
+                            and code_now == cross["code"]:
+                        finished = None                # same program again is not an independent check
+                        events.append("crosscheck_same_code")
+                        messages.append({"role": "user", "content": (
+                            "[harness] That is the same program. Write a different, independent program "
+                            "(another method) and print its answer as the last line.")})
+                    elif finished is not None and cross["first"] is None:
+                        cross["code"] = code_now
+            if finished is not None and "crosscheck" in feats:
+                key = _norm_answer(finished)
+                if cross["first"] is None:            # first candidate: ask for an independent second program
+                    cross["first"], finished = key, None
+                    events.append("crosscheck_ask")
+                    messages.append({"role": "user", "content": (
+                        "[harness] Before this answer is accepted, write a second, independent program that "
+                        "computes the same result a different way (do not copy the first program). "
+                        "Print its answer as the last line in the same format.")})
+                    continue
+                if key == cross["first"]:
+                    events.append("crosscheck_agree")
+                else:                                  # disagreement: show both, let the model decide
+                    events.append("crosscheck_disagree")
+                    cross["off"], finished = True, None
+                    messages.append({"role": "user", "content": (
+                        "[harness] The two programs disagree:\n- first: " + json.dumps(cross["first"], ensure_ascii=False)
+                        + "\n- second: " + json.dumps(key, ensure_ascii=False)
+                        + "\nFind which one follows the rules in the request (check each rule), fix it if needed, "
+                        "and reply with the final answer in the required format.")})
+                    continue
             if finished is not None:
                 answer = finished
                 events.append("autofinish")
