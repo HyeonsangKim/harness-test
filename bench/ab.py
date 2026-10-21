@@ -7,6 +7,7 @@ Conditions: B (plain loop), C (B + generic recheck turn), H (all harness feature
 env: LLM_URL, LLM_MODEL, optional LLM_API_KEY, LLM_CA_FILE, LLM_EXTRA (JSON merged into every request)
 """
 import argparse
+import copy
 import concurrent.futures as cf
 import json
 import os
@@ -23,7 +24,7 @@ import importlib
 
 
 def features_of(cond):
-    if cond in ("B", "C", "P", "V", "R"):
+    if cond in ("B", "C", "P", "PT", "V", "R"):
         return ()
     if cond in ("RH", "HS", "RS"):          # RH: run_python + harness; HS/RS: the same plus a skill file
         return hx.FEATURES
@@ -54,6 +55,10 @@ def run_one(client, task, cond, rep, out):
         def verify():
             r = ws.run_tests()
             return r["exit_code"] == 0, r["output"][-1200:]
+    if cond == "PT":                        # plain answer with the model's own long thinking turned on
+        client = copy.copy(client)
+        client.extra = {**client.extra, **json.loads(os.getenv("LLM_THINK_EXTRA", "{}"))}
+        client.max_tokens = 16000
     start = time.monotonic()
     try:
         if cond == "V":
