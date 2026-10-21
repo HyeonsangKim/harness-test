@@ -1,0 +1,27 @@
+{
+ "taskfile": "tasks_notool2",
+ "model": "qwen3.5-9b",
+ "extra": {
+  "temperature": 0.7,
+  "top_p": 0.8,
+  "top_k": 20,
+  "min_p": 0,
+  "presence_penalty": 1.5,
+  "chat_template_kwargs": {
+   "enable_thinking": false
+  }
+ },
+ "gap": "0",
+ "split": "notool2",
+ "conds": "P,RH,RT,PT",
+ "rep": 1,
+ "tasks": [
+  "nt2_01",
+  "nt2_05",
+  "nt2_09",
+  "nt2_15",
+  "nt2_21",
+  "nt2_26"
+ ],
+ "started": "2026-10-21 15:43:27"
+}

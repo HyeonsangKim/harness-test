@@ -1,0 +1,51 @@
+{
+ "taskfile": "tasks_notool2",
+ "model": "qwen3.5-9b",
+ "extra": {
+  "temperature": 0.7,
+  "top_p": 0.8,
+  "top_k": 20,
+  "min_p": 0,
+  "presence_penalty": 1.5,
+  "chat_template_kwargs": {
+   "enable_thinking": false
+  }
+ },
+ "gap": "0",
+ "split": "notool2",
+ "conds": "RT",
+ "rep": 2,
+ "tasks": [
+  "nt2_01",
+  "nt2_02",
+  "nt2_03",
+  "nt2_04",
+  "nt2_05",
+  "nt2_06",
+  "nt2_07",
+  "nt2_08",
+  "nt2_09",
+  "nt2_10",
+  "nt2_11",
+  "nt2_12",
+  "nt2_13",
+  "nt2_14",
+  "nt2_15",
+  "nt2_16",
+  "nt2_17",
+  "nt2_18",
+  "nt2_19",
+  "nt2_20",
+  "nt2_21",
+  "nt2_22",
+  "nt2_23",
+  "nt2_24",
+  "nt2_25",
+  "nt2_26",
+  "nt2_27",
+  "nt2_28",
+  "nt2_29",
+  "nt2_30"
+ ],
+ "started": "2026-10-21 15:08:39"
+}
