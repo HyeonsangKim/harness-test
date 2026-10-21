@@ -65,6 +65,7 @@ uv run --offline --no-project --python 3.12 ask.py question.txt --json "total:in
 
 | 문서 | 내용 |
 |---|---|
+| `HANDOFF_KO.md` | 다른 세션이 이어받을 때: 현재 상태, 실행 중인 실험, 재현 명령, 남은 일 |
 | `HARNESS_TECHNIQUES_KO.md` | 기법 목록(효과·비용·큰 모델에서 끌지), 효과 없던 기법, 평가 자산, 복기 |
 | `PROBE_GUIDE_KO.md` | 사내 실행 가이드(16절: GLM으로 도구 없는 하네스 재기) |
 | `LOCAL_SETUP_KO.md` | 사외 Mac에 로컬 모델 서버 세우기 |
