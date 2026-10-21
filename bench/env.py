@@ -292,8 +292,8 @@ def extract_tables(text, min_rows=3, clean=False):
 _NUM = re.compile(r"[\s$₩(−-]*[\d.,]+\s*%?\)?\s*(원)?")
 
 
-def normalize_table(d, rows):
-    """One clean comma CSV from an extracted table: cells stripped, outer | and markdown alignment rows
+def normalize_table(d, rows, out=","):
+    """One clean CSV (delimiter `out`) from an extracted table: cells stripped, outer | and markdown alignment rows
     removed, header rows above the data (no number cells, or an empty first cell) merged into one name per
     column, empty names filled as col1, col2, ... and duplicates numbered. Returns (header, csv_text)."""
     cells = []
@@ -327,7 +327,7 @@ def normalize_table(d, rows):
         seen[name] = seen.get(name, 0) + 1
         names.append(name if seen[name] == 1 else f"{name}_{seen[name]}")
     buf = io.StringIO()
-    w = csv.writer(buf, lineterminator="\n")
+    w = csv.writer(buf, delimiter=out, lineterminator="\n")
     w.writerow(names)
     w.writerows(r for r in cells[k:] if any(r))
     return names, buf.getvalue()
@@ -371,14 +371,27 @@ def python_tool(workdir, input_text=None, finish_hint=False, tables=False, clean
     desc = ("Run a Python 3 program (standard library only) and return its exit code, "
             "stdout and stderr. Use print() to show results. Each call starts fresh.")
     if clean_tables and input_text is not None:
-        found = [normalize_table(d, rows) for d, rows in extract_tables(input_text, clean=True)]
-        for i, (names, body) in enumerate(found, 1):
+        # clean_tables="keep": a tab table stays tab-separated, because users who paste from Excel say "tab-separated"
+        # and the model then passes delimiter='\t' whatever the file holds. True: every table becomes comma CSV.
+        keep_tab = clean_tables == "keep"
+        found = []
+        for d, rows in extract_tables(input_text, clean=True):
+            out = "\t" if keep_tab and d == "\t" else ","
+            found.append((out, *normalize_table(d, rows, out)))
+        for i, (out, names, body) in enumerate(found, 1):
             (root / f"table_{i}.csv").write_text(body, encoding="utf-8")
-        if found:
+        if found and keep_tab:
+            desc += (" Tables from the user's message are already saved as files with one header row; read them "
+                     "with csv.DictReader(open(name, encoding='utf-8'), delimiter=...) using the delimiter given "
+                     "here: " + "; ".join(
+                         f"table_{i}.csv ({body.count(chr(10)) - 1} data rows, delimiter "
+                         f"{'tab' if out == chr(9) else 'comma'}, columns: {names})"
+                         for i, (out, names, body) in enumerate(found, 1)) + ".")
+        elif found:
             desc += (" Tables from the user's message are already saved as comma-separated files with one "
                      "header row; read them with csv.DictReader(open(name, encoding='utf-8')): " + "; ".join(
                          f"table_{i}.csv ({body.count(chr(10)) - 1} data rows, columns: {names})"
-                         for i, (names, body) in enumerate(found, 1)) + ".")
+                         for i, (out, names, body) in enumerate(found, 1)) + ".")
     elif tables and input_text is not None:
         found = extract_tables(input_text)
         names = {",": "comma", "\t": "tab", "|": "|"}
