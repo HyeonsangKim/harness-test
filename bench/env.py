@@ -255,7 +255,7 @@ def doc_tools(docs):
 
 # ---------------------------------------------------------------- one general tool: run Python
 
-def python_tool(workdir, input_text=None):
+def python_tool(workdir, input_text=None, finish_hint=False):
     """A single general-purpose action for tasks without domain tools.
     Runs a standard-library Python program in its own folder with a 20 s limit, no inherited
     environment variables (so no keys), isolated mode (-I). This prevents accidents; it is not a security sandbox."""
@@ -283,5 +283,8 @@ def python_tool(workdir, input_text=None):
         desc += (" The user's whole message, including any pasted data, is saved as the file input.txt in the "
                  "working directory: read it with open('input.txt', encoding='utf-8').read() instead of "
                  "copying the data into your code.")
+    if finish_hint:
+        desc += (" When the program computes the final result, make its last printed line the final answer in "
+                 "exactly the format the user asked for; that line is then used as your reply.")
     return {"run_python": (spec("run_python", desc,
                                 {"code": STR}, ["code"]), run_python)}

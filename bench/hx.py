@@ -32,6 +32,25 @@ FEATURES = ("recover", "validate", "repeat", "budget", "contract", "verify", "ev
 # returns exactly the same result again, never blocking. Found on BFCL: in stateful tools (cd, then ls)
 # identical calls are legitimate and the v0 note "result is unchanged" was false.
 FEATURES_V1 = ("recover", "validate", "stall", "budget", "contract", "verify", "evidence")
+# tool-free harness v2: v1 + "autofinish" (the last printed line of a program that already matches the
+# answer format becomes the reply, saving the final model turn).
+FEATURES_NT2 = FEATURES_V1 + ("autofinish",)
+
+
+def finish_line(tool_output, contract):
+    """Last non-empty stdout line of a run_python result, if it already is a valid answer."""
+    if not contract or contract.get("type") != "json":
+        return None
+    try:
+        res = json.loads(tool_output)
+    except ValueError:
+        return None
+    if not isinstance(res, dict) or res.get("exit_code") != 0:
+        return None
+    lines = [l.strip() for l in str(res.get("stdout", "")).splitlines() if l.strip()]
+    if lines and grade.parse_json(lines[-1]) is not None and not contract_problems(lines[-1], contract):
+        return lines[-1]
+    return None
 SYSTEM = ("You are a work assistant for a Korean company. Use the tools to find facts; do not guess "
           "numbers or names. When you are done, reply with the final answer in exactly the format the user asked for.")
 
@@ -200,7 +219,7 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
     seen, calls, events = {}, 0, []
     results, stalls = {}, {}
     rechecks = {"contract": 0, "verify": 0, "evidence": 0, "control": 0}
-    answer, error = None, None
+    answer, error, finished = None, None, None
     tokens = {"prompt": 0, "completion": 0}
     if resume and trace is not None and trace.exists():
         saved = json.loads(trace.read_text(encoding="utf-8"))
@@ -298,6 +317,12 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                     events.append("budget_warning")
                     out += "\n[harness] Only 2 turns are left. Finish now and give the final answer in the required format."
                 messages.append({"role": "tool", "tool_call_id": tc.get("id") or f"call_{turn}_{i}", "content": out})
+                if "autofinish" in feats and finished is None:
+                    finished = finish_line(out, contract)
+            if finished is not None:
+                answer = finished
+                events.append("autofinish")
+                break
             continue
         # no tool call: a candidate final answer
         answer = content
