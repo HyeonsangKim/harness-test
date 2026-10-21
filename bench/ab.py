@@ -138,6 +138,15 @@ def paired(rows, a, b, seed=0, iters=10000):
 def cmd_report(a):
     out = Path(a.out)
     allrows = [json.loads(l) for l in (out / "results.jsonl").read_text(encoding="utf-8").splitlines()]
+    reps = getattr(a, "reps", 0)
+    if reps:                                  # balanced view: only repeats 0..reps-1, only tasks done in every condition
+        allrows = [r for r in allrows if r["rep"] < reps]
+        conds_all = {r["cond"] for r in allrows}
+        have = {}
+        for r in allrows:
+            if not infra(r):
+                have.setdefault((r["task"], r["rep"]), set()).add(r["cond"])
+        allrows = [r for r in allrows if have.get((r["task"], r["rep"])) == conds_all]
     rows = [r for r in allrows if not infra(r)]
     lost = len(allrows) - len(rows)
     conds = sorted({r["cond"] for r in rows}, key=lambda c: (c != "B", c != "C", c != "H", c))
@@ -201,6 +210,7 @@ def main():
     r.add_argument("--taskfile", default="tasks", help="task module: tasks or tasks_gen")
     q = sub.add_parser("report")
     q.add_argument("--out", required=True)
+    q.add_argument("--reps", type=int, default=0, help="only the first N repeats, paired across conditions")
     a = p.parse_args()
     cmd_run(a) if a.cmd == "run" else cmd_report(a)
 
