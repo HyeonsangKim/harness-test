@@ -235,6 +235,8 @@ def main():
             js.append("fence" if text.startswith("```") else "bad")
     lines.append("B-json " + ",".join(js))
     print(lines[-1])
+    lines.append(P.rl_line())
+    print(lines[-1])
     (P.OUT / "behavior.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     (P.OUT / "summary.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("saved:", P.OUT.resolve())

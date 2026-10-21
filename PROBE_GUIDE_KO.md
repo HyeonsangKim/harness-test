@@ -6,9 +6,12 @@
 
 ```powershell
 git pull
-python probe.py --n 10        # 약 45회 호출. 끝에 요약 9줄 (9절)
-python behavior.py --rep 3    # 약 55회 호출. 끝에 요약 7줄 (12절)
+python probe.py --n 10        # 약 45회 호출. 끝에 요약 10줄 (9절)
+python behavior.py --rep 3    # 약 55회 호출. 끝에 요약 8줄 (12절)
 ```
+
+- 게이트웨이가 `429`(호출 한도 초과)를 주면 스크립트가 알아서 기다렸다 다시 보낸다. 재시도까지 실패한 호출이 3번 나오면 나머지 호출은 건너뛰고 요약을 출력한다.
+- 이때 요약의 `RL` 줄에 거절 사유가 남는다. 이어서 할 일은 8절 표의 `429` 줄을 따른다.
 
 전달할 것은 두 스크립트의 `== copy these lines` 아래 줄들뿐이다. 키는 스크립트마다 한 번씩 입력한다.
 
@@ -93,7 +96,7 @@ PowerShell 명령 기록에 키가 남을 수 있어 권장 방법을 우선한�
 
 ## 7. 출력 읽는 법
 
-전달할 때는 9절의 요약 9줄만 옮기면 된다. 이 절은 화면을 직접 읽고 싶을 때 참고한다.
+전달할 때는 9절의 요약 10줄만 옮기면 된다. 이 절은 화면을 직접 읽고 싶을 때 참고한다.
 
 ```
 == 1. options (status, result, details)
@@ -118,7 +121,7 @@ default    {'think': 5210, 'seconds': 41.2, 'answer': 'Y'}  ...
 top_low    {'think': 380, 'seconds': 4.1, 'answer': 'Y'}  ...
 saved: C:\Users\...\probe_out\20261020-101500
 == copy these lines
-(요약 9줄. 9절 참고)
+(요약 10줄. 9절 참고)
 ```
 
 | 결과 | 뜻 |
@@ -163,10 +166,11 @@ saved: C:\Users\...\probe_out\20261020-101500
 | 전부 `http_401` / `http_403` | 키 오류 또는 권한 없음 |
 | 전부 `http_404` | URL 경로 오류. `/chat/completions` 포함 확인 |
 | `plain`까지 전부 `http_400` | 모델 ID 오류. 오류 원문 확인 |
+| `429 on ..., waiting ...`이 뜨거나 `RL` 줄에 `hits=`가 있음 | 게이트웨이 호출 한도. `RL` 줄의 사유를 본다. 분당 한도(`rpm`, `per minute`, `tpm`)면 몇 분 뒤 `$env:LLM_GAP = "6"`(호출마다 6초 쉼)으로 다시 실행한다. 일일 한도나 예산(`budget`, `daily`, `quota`)이면 다음 날 다시 실행한다. 재시도 횟수는 `$env:LLM_RETRIES`(기본 5)로 바꾼다 |
 
 ## 9. 결과 전달
 
-**맨 끝 `== copy these lines` 아래 9줄만 옮겨 적는다.** 위쪽의 긴 출력은 옮기지 않는다. 같은 내용이 결과 폴더의 `summary.txt`에도 저장된다.
+**맨 끝 `== copy these lines` 아래 10줄만 옮겨 적는다.** 위쪽의 긴 출력은 옮기지 않는다. 같은 내용이 결과 폴더의 `summary.txt`에도 저장된다.
 
 ```
 S1 plain=none auto=ok required=ok named=ok strict=400 no_parallel=ok effort_top=ok effort_kwargs=400 thinking_obj=ok
@@ -178,6 +182,7 @@ S4 ok:3 429:1
 S5 ko=1.5 en=4.3 json=3.1
 T2 default=5210c/41.2s/Y top_low=380c/4.1s/Y top_high=2400c/19.0s/Y kw_low=380c/4.0s/Y kw_high=2400c/18.7s/Y
 ER strict: {"error":"strict not supported"}
+RL -
 ```
 
 | 줄 | 내용 | 표기 |
@@ -190,7 +195,8 @@ ER strict: {"error":"strict not supported"}
 | `S4` | 동시 요청 결과별 개수 | `429`=동시 요청 한도에 걸림 |
 | `S5` | 토큰당 글자 수 | 비어 있으면 서버가 토큰 수를 안 알려줌 |
 | `T2` | 계산 문제(정답 401)를 사고량별로 풀린 결과: 사고 글자 수 c / 걸린 초 s / 정답 여부 | `default`=서버 기본값(max). `top_*`와 `kw_*`는 사고량을 넣는 두 방식. 글자 수가 low < high < default로 갈리면 그 방식이 실제로 먹힌다 |
-| `ER` | 첫 번째 오류 원문 70자 | `-`=오류 없음. 사내 주소가 들어 있으면 지우고 적는다 |
+| `ER` | 1단계에서 처음 나온 오류 원문 70자 | `-`=오류 없음. 키·해시·주소는 자동으로 `***`, `<hash>`, `<addr>`로 가려진다. 그래도 사내 이름이 보이면 지우고 적는다 |
+| `RL` | 호출 한도(429) 기록: 429 받은 수 / 재시도 수 / 기다린 초 / 건너뛴 호출 수 / 한도 헤더 / 첫 거절 사유 100자 | `-`=429 없음. `skipped`가 0보다 크면 그만큼 시험이 빠졌다는 뜻이다 |
 
 - 숫자 몇 개 틀려도 괜찮다. 판정이 애매하면 그 부분만 다시 물어본다.
 - `probe_out` 폴더는 사내에 보관한다. 요청·응답 원문이 들어 있어 v1의 재생 테스트 자료로 다시 쓴다. 키는 들어 있지 않다. `.gitignore`에 들어 있어 실수로 push되지 않는다.
@@ -236,7 +242,7 @@ probe.py가 "게이트웨이와 형식"을 본다면, behavior.py는 "모델이 
 python behavior.py --rep 3
 ```
 
-약 55회 호출, 사고량은 기본 low(`--effort high`로 바꿀 수 있다). 끝나면 `== copy these lines` 아래 7줄만 옮긴다.
+약 55회 호출, 사고량은 기본 low(`--effort high`로 바꿀 수 있다). 끝나면 `== copy these lines` 아래 8줄만 옮긴다.
 
 ```
 B-multi 3/3 calls=2,3,2
@@ -246,6 +252,7 @@ B-pick 3/3 first=get_receivable,get_receivable,get_receivable
 B-edit 2/3 calls=5,4,8 editfail=0,1,3
 B-needle 8000=Y/8120tok/3.1s 32000=N/32400tok/9.8s
 B-json Y,Y,fence
+RL -
 ```
 
 | 줄 | 시험 | 보는 것 |
@@ -257,6 +264,7 @@ B-json Y,Y,fence
 | `B-edit` | 버그 2개(첫 값 빠뜨림, 빈 목록 오류)가 있는 작은 파이썬 함수를 읽고 고친 뒤 테스트 실행 | 코드를 정확히 고치는지(마지막에 하네스가 테스트를 다시 돌려 판정). `editfail`=바꿀 원문을 정확히 못 맞춘 횟수. 모델이 고친 코드는 결과 폴더 안에서만, 10초 제한으로 실행된다 |
 | `B-needle` | 약 8천·3만 2천 토큰 한국어 글 가운데 숨긴 암호명 찾기 | 긴 문맥에서 정보를 놓치는지. `Y/N`, 실제 입력 토큰, 시간 |
 | `B-json` | 전표 3건을 JSON으로만 출력 | 형식 지시를 지키는지. `fence`=코드블록으로 감쌈, `shape`=내용 틀림, `bad`=JSON 아님 |
+| `RL` | 호출 한도 기록 (9절 `RL`과 같음) | 이 줄에 `hits=`가 있으면 그 시험들의 실패는 모델이 아니라 한도 때문일 수 있다 |
 
 `err=` 뒤에 `txt`(도구 호출이 본문으로 샘), `max_turns`(8번 안에 못 끝냄), `http_...`가 붙으면 그대로 옮긴다. 이 시험은 맛보기다. 하네스를 켜고 끈 비교는 실제 업무 예시로 2단계에서 한다.
 

@@ -7,6 +7,7 @@ import concurrent.futures as cf
 import getpass
 import json
 import os
+import re
 import ssl
 import statistics
 import time
@@ -18,6 +19,41 @@ URL, MODEL = os.environ["LLM_URL"], os.environ["LLM_MODEL"]
 KEY = os.getenv("LLM_API_KEY") or getpass.getpass("API key: ")
 CTX = ssl.create_default_context(cafile=os.getenv("LLM_CA_FILE"))
 OUT = Path("probe_out") / time.strftime("%Y%m%d-%H%M%S")
+RETRIES = int(os.getenv("LLM_RETRIES", "5"))   # retries on 429
+GAP = float(os.getenv("LLM_GAP", "0"))          # seconds to pause before every call
+RL = {"hits": 0, "retries": 0, "waited": 0, "gave_up": 0, "skipped": 0, "body": "", "headers": {}}
+GIVE_UP = 3   # after this many calls still 429 after retries, skip the rest
+
+
+def retry_after(hdrs, attempt):
+    try:
+        return min(max(float(hdrs.get("retry-after")), 1), 120)
+    except (TypeError, ValueError):
+        return min(5 * 2 ** attempt, 60)
+
+
+def redact(text):
+    """Hide the key, key hashes, tokens and addresses before anything is printed."""
+    if KEY:
+        text = text.replace(KEY, "***")
+    text = re.sub(r"(sk-|Bearer )\S+", r"\1***", text)
+    text = re.sub(r"\b[0-9a-fA-F]{24,}\b", "<hash>", text)
+    return re.sub(r"https?://\S+|\b\d{1,3}(\.\d{1,3}){3}(:\d+)?\b", "<addr>", text)
+
+
+def note_429(data, hdrs):
+    RL["hits"] += 1
+    if not RL["body"]:
+        try:
+            err = json.loads(data).get("error", data)
+            data = err.get("message", err) if isinstance(err, dict) else err
+        except (ValueError, AttributeError, TypeError):
+            pass
+        RL["body"] = redact(" ".join(str(data).split()))[:160]
+        RL["headers"] = {k.lower(): v for k, v in hdrs.items()
+                         if "ratelimit" in k.lower() or k.lower() == "retry-after"}
+
+
 FN = {"name": "get_weather", "description": "Get the current weather for a city.",
       "parameters": {"type": "object", "properties": {"city": {"type": "string"}},
                      "required": ["city"], "additionalProperties": False}}
@@ -49,16 +85,38 @@ def call(name, extra, prompt=ASK["en"], messages=None, max_tokens=4096, timeout=
     req = urllib.request.Request(URL, data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
                                  headers={"Authorization": "Bearer " + KEY,
                                           "Content-Type": "application/json"})
-    start, hdrs = time.monotonic(), {}
-    try:
-        with urllib.request.urlopen(req, timeout=timeout, context=CTX) as r:
-            status, data, hdrs = r.status, json.load(r), r.headers
-    except urllib.error.HTTPError as e:
-        status, data, hdrs = e.code, e.read().decode("utf-8", "replace")[:3000], e.headers
-    except Exception as e:
-        status, data = 0, f"{type(e).__name__}: {e}"
-    rec = {"name": name, "request": body, "status": status,
-           "seconds": round(time.monotonic() - start, 2), "response": data,
+    if RL["gave_up"] >= GIVE_UP:
+        RL["skipped"] += 1
+        return {"name": name, "request": body, "status": 429, "waited": 0, "seconds": 0,
+                "response": "skipped: still rate-limited", "headers": {}}
+    if GAP:
+        time.sleep(GAP)
+    start, waited = time.monotonic(), 0
+    for attempt in range(RETRIES + 1):
+        hdrs = {}
+        try:
+            with urllib.request.urlopen(req, timeout=timeout, context=CTX) as r:
+                status, data, hdrs = r.status, json.load(r), r.headers
+        except urllib.error.HTTPError as e:
+            status, data, hdrs = e.code, e.read().decode("utf-8", "replace")[:3000], e.headers
+        except Exception as e:
+            status, data = 0, f"{type(e).__name__}: {e}"
+        if status != 429:
+            break
+        note_429(data, hdrs)
+        if attempt == RETRIES:
+            RL["gave_up"] += 1
+            if RL["gave_up"] == GIVE_UP:
+                print(f"  still 429 after retries on {GIVE_UP} calls; skipping the remaining calls")
+            break
+        wait = retry_after(hdrs, attempt)
+        print(f"  429 on {name}, waiting {wait}s (retry {attempt + 1}/{RETRIES})")
+        time.sleep(wait)
+        waited += wait
+        RL["retries"] += 1
+    RL["waited"] += waited
+    rec = {"name": name, "request": body, "status": status, "waited": waited,
+           "seconds": round(time.monotonic() - start - waited, 2), "response": data,
            "headers": {k.lower(): v for k, v in hdrs.items() if k.lower() != "set-cookie"}}
     (OUT / f"{name}.json").write_text(json.dumps(rec, ensure_ascii=False, indent=1), encoding="utf-8")
     return rec
@@ -209,7 +267,17 @@ def summary(rep):
         "S5 " + " ".join(f"{k}={v}" for k, v in rep["chars_per_token"].items()),
         "T2 " + " ".join(f"{n}={v['think']}c/{v['seconds']}s/{v['answer']}" for n, v in rep["effort"].items()),
         "ER " + next((f"{n}: {v['error']}" for n, v in c.items() if "error" in v), "-"),
+        rl_line(),
     ]
+
+
+def rl_line():
+    """429 count, retries, total wait, rate-limit headers, first 429 body."""
+    if not RL["hits"]:
+        return "RL -"
+    hdr = " ".join(f"{k.replace('x-ratelimit-', '')}={v}" for k, v in RL["headers"].items())
+    return (f"RL hits={RL['hits']} retries={RL['retries']} waited={round(RL['waited'])}s "
+            f"skipped={RL['skipped']} {hdr} | {RL['body'][:100]}")
 
 def main():
     parser = argparse.ArgumentParser()
@@ -228,7 +296,7 @@ def main():
         report["checks"][name] = {"status": rec["status"], "kind": kind(rec),
                                   "seconds": rec["seconds"], "think_chars": len(think)}
         if rec["status"] != 200:
-            report["checks"][name]["error"] = str(rec["response"])[:70].replace("\n", " ")
+            report["checks"][name]["error"] = redact(" ".join(str(rec["response"]).split()))[:70]
         print(f"{name:14} {kind(rec):16} {rec['seconds']:6}s  {info(rec)}")
     print("server", json.dumps(report["server"], ensure_ascii=False))
     ok = {n for n, c in report["checks"].items() if c["status"] == 200}
