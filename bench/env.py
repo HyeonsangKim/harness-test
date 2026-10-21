@@ -287,6 +287,7 @@ def python_tool(workdir, input_text=None, finish_hint=False, tables=False):
     if input_text is not None:   # the user's message, so the model reads data instead of retyping it
         (root / "input.txt").write_text(input_text, encoding="utf-8")
     keep = {k: os.environ[k] for k in ("PATH", "SYSTEMROOT", "TEMP", "TMP") if k in os.environ}
+    limit = float(os.getenv("LLM_PY_TIMEOUT", "20"))   # seconds per program; stops runaway loops, not model thinking
 
     def run_python(code):
         counter["n"] += 1
@@ -294,10 +295,10 @@ def python_tool(workdir, input_text=None, finish_hint=False, tables=False):
         path.write_text(str(code), encoding="utf-8")
         try:
             r = subprocess.run([sys.executable, "-I", "-X", "utf8", path.name], cwd=root, env=keep,
-                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20)
+                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=limit)
             return {"exit_code": r.returncode, "stdout": r.stdout[-4000:], "stderr": r.stderr[-2000:]}
         except subprocess.TimeoutExpired:
-            return {"exit_code": -1, "stdout": "", "stderr": "timeout after 20s"}
+            return {"exit_code": -1, "stdout": "", "stderr": f"timeout after {limit}s"}
 
     desc = ("Run a Python 3 program (standard library only) and return its exit code, "
             "stdout and stderr. Use print() to show results. Each call starts fresh.")
