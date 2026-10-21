@@ -35,6 +35,7 @@ FEATURES_V1 = ("recover", "validate", "stall", "budget", "contract", "verify", "
 # tool-free harness v2: v1 + "autofinish" (the last printed line of a program that already matches the
 # answer format becomes the reply, saving the final model turn).
 FEATURES_NT2 = FEATURES_V1 + ("autofinish",)
+# v3b: tables as files but no autofinish (the model reviews the program output before answering)
 
 
 def finish_line(tool_output, contract):
