@@ -1,9 +1,11 @@
 """Small helpers the harness copies into the model's working folder as helpers.py (standard library only).
 
-    from helpers import num, norm
+    from helpers import num, norm, date
     num("2억6천만원") -> 260000000      num("(1,234)") -> -1234     num("$5.2") -> 5.2     num("12.5%") -> 12.5
     norm(" 스테이플러 심 ") == norm("스테이플러심")      norm("(주)한빛") == norm("한빛")
+    date("2026년 3월 20일") == date("20260320") == date("2026.3.20") == date("2026/03/20") -> datetime.date
 """
+import datetime
 import re
 
 _SMALL = {"천": 1000, "백": 100, "십": 10}
@@ -68,3 +70,17 @@ def norm(text):
     s = str(text)
     s = re.sub(r"\(주\)|㈜|주식회사|\(유\)|㈲", "", s)
     return re.sub(r"\s+", "", s).casefold()
+
+
+def date(text, year=None):
+    """A date written the way people write it: 2026-03-20, 2026.3.20, 2026/03/20, 20260320, 2026년 3월 20일,
+    3월 20일 or 3/20 (with year= for the missing year). Returns datetime.date; raises ValueError."""
+    s = str(text).strip()
+    m = re.search(r"(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일", s) \
+        or re.search(r"(\d{4})[-./](\d{1,2})[-./](\d{1,2})", s) or re.search(r"\b(\d{4})(\d{2})(\d{2})\b", s)
+    if m:
+        return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    m = re.search(r"(\d{1,2})\s*월\s*(\d{1,2})\s*일", s) or re.search(r"\b(\d{1,2})[/.](\d{1,2})\b", s)
+    if m and year:
+        return datetime.date(int(year), int(m.group(1)), int(m.group(2)))
+    raise ValueError(f"not a date: {text!r}")

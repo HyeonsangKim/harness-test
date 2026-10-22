@@ -430,9 +430,10 @@ def python_tool(workdir, input_text=None, finish_hint=False, tables=False, clean
                  "working directory: read it with open('input.txt', encoding='utf-8').read() instead of "
                  "copying the data into your code.")
     if helpers:
-        desc += (" A helper module is in the folder: from helpers import num, norm. num(text) reads a number "
+        desc += (" A helper module is in the folder: from helpers import num, norm, date. num(text) reads a number "
                  "written the way people write it ('2억6천만원', '(1,234)', '$5.2', '12.5%', '1,597,000원'); "
-                 "norm(text) gives a key for comparing names (spaces removed, case-folded, (주) dropped).")
+                 "norm(text) gives a key for comparing names (spaces removed, case-folded, (주) dropped); "
+                 "date(text, year=None) reads '2026년 3월 20일', '20260320', '2026.3.20', '2026/03/20' into datetime.date.")
     if finish_hint:
         desc += (" When the program computes the final result, make its last printed line the final answer in "
                  "exactly the format the user asked for; that line is then used as your reply.")

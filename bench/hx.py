@@ -53,6 +53,8 @@ FEATURES_NT9 = FEATURES_NT7 + ("emptycheck",)
 FEATURES_NT10 = FEATURES_NT9 + ("rulegate", "compact")
 # v11: NT9 + thinking only when reading is hard or the run shows trouble (fast on simple requests)
 FEATURES_NT11 = FEATURES_NT9 + ("adaptive_think",)
+# v12 (RT21): RT19 + cleanup-rule review + shortened data in later turns (helpers and turn budget set by ab.py)
+FEATURES_NT12 = FEATURES_NT9 + ("rulegate", "compact")
 # v3b: tables as files but no autofinish (the model reviews the program output before answering)
 
 
