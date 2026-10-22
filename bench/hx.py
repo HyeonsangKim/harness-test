@@ -56,7 +56,7 @@ FEATURES_NT11 = FEATURES_NT9 + ("adaptive_think",)
 # v12 (RT21): RT19 + cleanup-rule review + shortened data in later turns (helpers and turn budget set by ab.py)
 FEATURES_NT12 = FEATURES_NT9 + ("rulegate", "compact", "errgate")
 # v13 (RT22): RT21 + rule checklist before an answer is accepted + a second independent program for hard requests
-FEATURES_NT13 = FEATURES_NT12 + ("rulecheck", "crosshard")
+FEATURES_NT13 = FEATURES_NT12 + ("rulecheck", "crosshard", "mask")
 # v3b: tables as files but no autofinish (the model reviews the program output before answering)
 
 
@@ -164,6 +164,21 @@ def has_cleanup_rules(request):
     """The request states rules for cleaning the data (duplicates, notes, rows not to count). A program's first
     output often misses one of them, so the model should look at the output before answering."""
     return len(_RULE_CUES.findall(request or "")) >= 2
+
+
+def _mask_old_outputs(messages, keep_last=2, keep_chars=300):
+    """Older tool outputs shortened to their first characters; the last `keep_last` stay whole. Long tasks then
+    fit the server's context, and the model can rerun a program if it needs an old output again."""
+    idx = [i for i, m in enumerate(messages) if m.get("role") == "tool"]
+    old = set(idx[:-keep_last]) if len(idx) > keep_last else set()
+    out = []
+    for i, m in enumerate(messages):
+        c = m.get("content")
+        if i in old and isinstance(c, str) and len(c) > keep_chars + 100:
+            m = dict(m, content=c[:keep_chars] + f"\n[harness] ... {len(c) - keep_chars} characters of this older "
+                     "output are left out; run the program again if you need them ...")
+        out.append(m)
+    return out
 
 
 def _compact(messages, keep=1200):
@@ -590,7 +605,9 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
             events.append("think_on")
         chat_client = think_client if thinking else client
         try:
-            resp = chat_client.chat(_compact(messages) if "compact" in feats else messages, specs, max_tokens=room)
+            view = _compact(messages) if "compact" in feats else messages
+            view = _mask_old_outputs(view) if "mask" in feats else view
+            resp = chat_client.chat(view, specs, max_tokens=room)
         except RuntimeError as e:
             if str(e).startswith("bad_tool_call") and "recover" in feats and bad_calls < 2:
                 # a tool call cut off by the output limit: give the next reply twice the room, like length_retry
@@ -617,7 +634,7 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
             tokens["prompt"] += u0.get("prompt_tokens") or 0
             tokens["completion"] += u0.get("completion_tokens") or 0
             try:
-                resp = chat_client.chat(_compact(messages) if "compact" in feats else messages, specs, max_tokens=cap)
+                resp = chat_client.chat(view, specs, max_tokens=cap)
             except RuntimeError as e:
                 error = str(e)
                 resp = {}
