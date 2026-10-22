@@ -38,8 +38,10 @@ def features_of(cond):
         return hx.FEATURES_NT7
     if cond in ("RT13H", "RT14H"):
         return hx.FEATURES_NT9
-    if cond in ("RT16H", "RT16TH"):
+    if cond in ("RT16H", "RT16TH", "RT18H"):
         return hx.FEATURES_NT10
+    if cond == "RT17H":
+        return hx.FEATURES_NT7
     if cond == "RT16C":
         return ("recover", "validate", "stall", "budget", "contract")
     if cond == "RT15H":
@@ -76,6 +78,15 @@ def run_one(client, task, cond, rep, out):
             cond = "RT16C"                  # a code-writing request
         else:
             cond = "RT16TH" if cond == "RT16T" else "RT16H"
+    if cond in ("RT17", "RT18"):            # RT12 / RT16 with table extractor v2 (group headers, two-column, memo breaks)
+        base = {"RT17": "RT12", "RT18": "RT16"}[cond]
+        request, contract = task["prompt"], task.get("contract")
+        if not hx.wants_harness(request, contract):
+            cond = "P"
+        elif base == "RT16" and (contract or {}).get("type") != "json" and hx._CODE_ASK.search(request):
+            cond = "RT16C"
+        else:
+            cond = "RT17H" if base == "RT12" else "RT18H"
     if cond == "RT15":                      # B: RT13 without autofinish (the model writes the final answer after the output)
         cond = "RT15H" if hx.wants_harness(task["prompt"], task.get("contract")) else "P"
     ws, verify = None, None
@@ -99,6 +110,11 @@ def run_one(client, task, cond, rep, out):
                                     clean_tables="keep", helpers=True)
         elif cond == "RT16C":
             tools = env.python_tool(out / "ws" / tag)
+        elif cond == "RT17H":
+            tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], finish_hint=True, clean_tables="keep2")
+        elif cond == "RT18H":
+            tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], finish_hint=True,
+                                    clean_tables="keep2", helpers=True)
         else:
             tools = env.python_tool(out / "ws" / tag) if cond in ("R", "RH", "RS") else {}
     elif task["tools"] == "erp":
@@ -145,9 +161,9 @@ SKILL_FILE = {"erp": "erp.md", "code": "code.md", "doc": "doc.md", "none": "pyth
 
 def system_for(task, cond):
     """HS and RS add the skill file of the task's tool family to the system prompt; others use the plain one."""
-    if cond not in ("HS", "RS", "RX", "RT", "RT2", "RT4", "RT5", "RT6", "RT7", "RT8", "RT5T", "RT9", "RT10", "RT11", "RT13H", "RT14H", "RT15H", "RT16H", "RT16TH", "RT16C", "RTB"):
+    if cond not in ("HS", "RS", "RX", "RT", "RT2", "RT4", "RT5", "RT6", "RT7", "RT8", "RT5T", "RT9", "RT10", "RT11", "RT13H", "RT14H", "RT15H", "RT16H", "RT16TH", "RT16C", "RT17H", "RT18H", "RTB"):
         return hx.SYSTEM
-    name = {"RX": "python_v2.md", "RT": "python_v3.md", "RT2": "python_v3.md", "RT4": "python_v3.md", "RT5": "python_v3.md", "RT6": "python_v3.md", "RT7": "python_v4.md", "RT8": "python_v4.md", "RT5T": "python_v3.md", "RT9": "python_v3.md", "RT10": "python_v3.md", "RT11": "python_v4.md", "RT13H": "python_v5.md", "RT14H": "python_v5.md", "RT15H": "python_v5.md", "RT16H": "python_v6.md", "RT16TH": "python_v6.md", "RT16C": "python_code.md", "RTB": "python_v3b.md"}.get(cond, SKILL_FILE[task["tools"]])
+    name = {"RX": "python_v2.md", "RT": "python_v3.md", "RT2": "python_v3.md", "RT4": "python_v3.md", "RT5": "python_v3.md", "RT6": "python_v3.md", "RT7": "python_v4.md", "RT8": "python_v4.md", "RT5T": "python_v3.md", "RT9": "python_v3.md", "RT10": "python_v3.md", "RT11": "python_v4.md", "RT13H": "python_v5.md", "RT14H": "python_v5.md", "RT15H": "python_v5.md", "RT16H": "python_v6.md", "RT16TH": "python_v6.md", "RT16C": "python_code.md", "RT17H": "python_v3.md", "RT18H": "python_v6.md", "RTB": "python_v3b.md"}.get(cond, SKILL_FILE[task["tools"]])
     text = (SKILLS / name).read_text(encoding="utf-8").strip()
     return hx.SYSTEM + "\n\n# How to work with these tools\n" + text
 

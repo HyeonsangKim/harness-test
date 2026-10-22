@@ -267,7 +267,7 @@ def extract_tables(text, min_rows=3, clean=False):
     Returns [(delimiter, [lines])]. Rule-based, no model call.
     clean=True: commas inside numbers (1,234) do not count as delimiters, and lines already taken by a
     tab or | table are not taken again as a comma table."""
-    found = []
+    found, spans = [], []                         # spans: (delimiter, line index after the table's last row)
     lines = (text or "").splitlines()
     taken = set()
     for d in (("\t", "|", ",") if clean else (",", "\t", "|")):
@@ -276,16 +276,32 @@ def extract_tables(text, min_rows=3, clean=False):
             if clean and d == ",":
                 line = "" if i in taken else _THOUSANDS.sub("", line)
             n = line.count(d)
-            if n >= 2 and (not run or run[0].count(d) == n):
+            least = 1 if (clean == "v2" and d == "\t") else 2     # v2: a two-column tab table (label, value)
+            if n >= least and (not run or run[0].count(d) == n):
                 run.append(line.strip(" \r"))       # keep leading/trailing delimiters (empty first cell)
                 continue
-            header = [c.strip() for c in run[0].strip(d).split(d)] if run else []
-            named = [c for c in header if c]          # an empty top-left cell is common in report tables
-            ok = len(named) >= 2 and all(len(c) <= 40 and not re.search(r"\d,\d{3}|:", c) for c in named)
-            if len(run) >= min_rows and ok:
-                found.append((d, run))
+            if clean == "v2":
+                # report tables often open with a group header spanning columns ("Years Ended December 31,"):
+                # judge the header on the first three rows together, ignoring cells that are numbers
+                cells = [c.strip() for r in run[:3] for c in r.strip(d).split(d)] if run else []
+                named = [c for c in cells if c and not _NUM.fullmatch(c)]
+                ok = len(named) >= 2 and all(len(c) <= 80 for c in named)
+            else:
+                header = [c.strip() for c in run[0].strip(d).split(d)] if run else []
+                named = [c for c in header if c]          # an empty top-left cell is common in report tables
+                ok = len(named) >= 2 and all(len(c) <= 40 and not re.search(r"\d,\d{3}|:", c) for c in named)
+            if clean == "v2" and run and found and spans and spans[-1][0] == d and found[-1][0] == d \
+                    and found[-1][1][0].count(d) == run[0].count(d) and (i - len(run)) - spans[-1][1] <= 2:
+                # the same table, broken by a memo or blank line or two: continue it instead of starting a
+                # new table whose first data row would be read as a header
+                found[-1] = (d, found[-1][1] + run)
+                spans[-1] = (d, i)
                 taken.update(range(i - len(run), i))
-            run = [line.strip(" \r")] if n >= 2 else []
+            elif len(run) >= min_rows and ok:
+                found.append((d, run))
+                spans.append((d, i))
+                taken.update(range(i - len(run), i))
+            run = [line.strip(" \r")] if n >= least else []
     return found
 
 
@@ -380,9 +396,9 @@ def python_tool(workdir, input_text=None, finish_hint=False, tables=False, clean
     if clean_tables and input_text is not None:
         # clean_tables="keep": a tab table stays tab-separated, because users who paste from Excel say "tab-separated"
         # and the model then passes delimiter='\t' whatever the file holds. True: every table becomes comma CSV.
-        keep_tab = clean_tables == "keep"
+        keep_tab = clean_tables in ("keep", "keep2")
         found = []
-        for d, rows in extract_tables(input_text, clean=True):
+        for d, rows in extract_tables(input_text, clean="v2" if clean_tables == "keep2" else True):
             out = "\t" if keep_tab and d == "\t" else ","
             found.append((out, *normalize_table(d, rows, out)))
         for i, (out, names, body) in enumerate(found, 1):
