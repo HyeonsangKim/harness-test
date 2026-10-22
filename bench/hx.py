@@ -558,9 +558,12 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
     gate = {"rules": rule_lines(task_prompt) if "rulecheck" in feats else [], "rules_done": False,
             "hard": "crosshard" in feats and is_hard_request(task_prompt), "stage": None, "first": None}
 
-    def final_gate(candidate):
+    def final_gate(candidate, left):
         """Checks before an answer is accepted: the stated rules one by one, then (for hard requests) a second,
-        independent program that must reach the same answer. Returns a message for the model, or None."""
+        independent program that must reach the same answer. Returns a message for the model, or None.
+        Skipped when fewer than 3 turns are left: a fix needs a run and an answer, so a late check only burns them."""
+        if left < 3:
+            return None
         if gate["rules"] and not gate["rules_done"]:
             gate["rules_done"] = True
             events.append("rulecheck")
@@ -748,7 +751,7 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                         "program again.")})
                     continue
             if finished is not None and ("rulecheck" in feats or "crosshard" in feats):
-                note = final_gate(finished)
+                note = final_gate(finished, left)
                 if note:
                     finished = None
                     messages.append({"role": "user", "content": note})
@@ -783,7 +786,7 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                 feedback = f"[harness] Automatic check failed, so the task is not done yet:\n{detail}\nFix it, then answer again."
         if feedback is None and ("rulecheck" in feats or "crosshard" in feats) \
                 and not contract_problems(content, contract):
-            note = final_gate(content)
+            note = final_gate(content, left)
             if note:
                 feedback, kind = note, "final_gate"
         if feedback is None and control and not rechecks["control"]:
