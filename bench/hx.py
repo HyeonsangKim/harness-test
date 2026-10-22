@@ -54,7 +54,7 @@ FEATURES_NT10 = FEATURES_NT9 + ("rulegate", "compact")
 # v11: NT9 + thinking only when reading is hard or the run shows trouble (fast on simple requests)
 FEATURES_NT11 = FEATURES_NT9 + ("adaptive_think",)
 # v12 (RT21): RT19 + cleanup-rule review + shortened data in later turns (helpers and turn budget set by ab.py)
-FEATURES_NT12 = FEATURES_NT9 + ("rulegate", "compact")
+FEATURES_NT12 = FEATURES_NT9 + ("rulegate", "compact", "errgate")
 # v3b: tables as files but no autofinish (the model reviews the program output before answering)
 
 
@@ -184,6 +184,22 @@ def wants_thinking(request):
     """Reading is the hard part: a pasted table, a long request, or data-cleanup rules."""
     text = request or ""
     return needs_code(text, None) or len(text) > 4000 or has_cleanup_rules(text)
+
+
+# only words that mean the program failed on some input; "skipped"/"제외" are normal reports of applied rules
+_OUTPUT_TROUBLE = re.compile(r"\berror\b|could not|cannot (?:parse|convert|read)|failed|invalid literal|unparsed|"
+                             r"traceback|실패|오류|에러|파싱 불가|읽지 못|변환 불가", re.IGNORECASE)
+
+
+def output_reports_trouble(tool_output):
+    """The program itself printed that something went wrong (a row it could not read, a skipped value).
+    Its last line may still look like an answer, but the total is likely missing those rows."""
+    try:
+        res, _ = json.JSONDecoder().raw_decode(tool_output)
+    except ValueError:
+        return False
+    lines = [l for l in str(res.get("stdout", "")).splitlines() if l.strip()][:-1]   # not the answer line itself
+    return any(_OUTPUT_TROUBLE.search(l) for l in lines)
 
 
 def finish_line(tool_output, contract):
@@ -589,6 +605,9 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                 messages.append({"role": "tool", "tool_call_id": tc.get("id") or f"call_{turn}_{i}", "content": out})
                 if "autofinish" in feats and finished is None and not cross["off"] and not rule_review:
                     finished = finish_line(out, contract)
+                    if finished is not None and "errgate" in feats and output_reports_trouble(out):
+                        finished = None             # the model sees its own warnings before answering
+                        events.append("errgate")
                     code_now = json.dumps(args, sort_keys=True) if args is not None else ""
                     if finished is not None and "crosscheck" in feats and cross["first"] is not None \
                             and code_now == cross["code"]:
