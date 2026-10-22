@@ -51,6 +51,8 @@ FEATURES_NT9 = FEATURES_NT7 + ("emptycheck",)
 # v10: + no autofinish when the request states cleanup rules (the model checks the output against them),
 # + later turns see the pasted data shortened (it is in input.txt and table files)
 FEATURES_NT10 = FEATURES_NT9 + ("rulegate", "compact")
+# v11: NT9 + thinking only when reading is hard or the run shows trouble (fast on simple requests)
+FEATURES_NT11 = FEATURES_NT9 + ("adaptive_think",)
 # v3b: tables as files but no autofinish (the model reviews the program output before answering)
 
 
@@ -174,6 +176,12 @@ def _compact(messages, keep=1200):
             done = True
         out.append(m)
     return out
+
+
+def wants_thinking(request):
+    """Reading is the hard part: a pasted table, a long request, or data-cleanup rules."""
+    text = request or ""
+    return needs_code(text, None) or len(text) > 4000 or has_cleanup_rules(text)
 
 
 def finish_line(tool_output, contract):
@@ -406,7 +414,7 @@ def _result_text(value):
 
 
 def run(client, task_prompt, tools, features=(), control=False, contract=None, verify=None,
-        max_turns=12, trace=None, history=None, system=SYSTEM, resume=False):
+        max_turns=12, trace=None, history=None, system=SYSTEM, resume=False, think_client=None):
     """tools: {name: (spec, fn)}. verify: callable() -> (ok, message) or None.
     history: messages of earlier turns of the same conversation (multi-turn tasks).
     trace: file written after every turn (a checkpoint). resume=True continues an unfinished trace.
@@ -485,10 +493,21 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
     rule_review = "rulegate" in feats and has_cleanup_rules(task_prompt)
     if rule_review:
         events.append("rule_review")
+    # adaptive thinking: the model's own long thinking only when reading is hard (a table, a long request, cleanup
+    # rules) or when the run shows trouble (repeated code errors, a stall, an empty answer field, a loop)
+    thinking = "adaptive_think" in feats and think_client is not None and wants_thinking(task_prompt)
+    if thinking:
+        events.append("think_start")
+    code_errors = 0
     for turn in range(used, max_turns):
         save(False)
+        if "adaptive_think" in feats and think_client is not None and not thinking and (
+                code_errors >= 2 or any(e in events for e in ("stall", "emptycheck", "loop", "bad_call"))):
+            thinking = True
+            events.append("think_on")
+        chat_client = think_client if thinking else client
         try:
-            resp = client.chat(_compact(messages) if "compact" in feats else messages, specs, max_tokens=room)
+            resp = chat_client.chat(_compact(messages) if "compact" in feats else messages, specs, max_tokens=room)
         except RuntimeError as e:
             if str(e).startswith("bad_tool_call") and "recover" in feats and bad_calls < 2:
                 # a tool call cut off by the output limit: give the next reply twice the room, like length_retry
@@ -515,7 +534,7 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
             tokens["prompt"] += u0.get("prompt_tokens") or 0
             tokens["completion"] += u0.get("completion_tokens") or 0
             try:
-                resp = client.chat(_compact(messages) if "compact" in feats else messages, specs, max_tokens=cap)
+                resp = chat_client.chat(_compact(messages) if "compact" in feats else messages, specs, max_tokens=cap)
             except RuntimeError as e:
                 error = str(e)
                 resp = {}
@@ -558,6 +577,8 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                     args, out = None, "Error: arguments are not valid JSON"
                 if args is not None:
                     out = execute(fn.get("name", ""), args if isinstance(args, dict) else {"_": args})
+                    if '"exit_code": 0' not in out[:40]:
+                        code_errors += 1
                     if isinstance(args, dict):
                         last_code = str(args.get("code", ""))
                 if "budget" in feats and left == 2 and i == len(tcalls) - 1:
