@@ -36,8 +36,10 @@ def features_of(cond):
         return hx.FEATURES_NT6
     if cond == "RT9":                       # v7: RT5 + code check only when a number or table is involved
         return hx.FEATURES_NT7
-    if cond == "RT13H":
+    if cond in ("RT13H", "RT14H"):
         return hx.FEATURES_NT9
+    if cond == "RT15H":
+        return tuple(f for f in hx.FEATURES_NT9 if f not in ("autofinish", "emptycheck"))
     if cond in ("RT10", "RT11"):            # v7 + number check (RT11 also with skill v4)
         return hx.FEATURES_NT7C
     if cond == "RT2":                       # RT + autofinish only after two programs agree
@@ -60,6 +62,10 @@ def run_one(client, task, cond, rep, out):
         cond = "RT9" if hx.wants_harness(task["prompt"], task.get("contract")) else "P"
     if cond == "RT13":                      # v9: RT12 + empty text field check + "do not round" rule (skill v5)
         cond = "RT13H" if hx.wants_harness(task["prompt"], task.get("contract")) else "P"
+    if cond == "RT14":                      # A: RT13 with the model's own thinking on (reads with thinking, computes in code)
+        cond = "RT14H" if hx.wants_harness(task["prompt"], task.get("contract")) else "PT"
+    if cond == "RT15":                      # B: RT13 without autofinish (the model writes the final answer after the output)
+        cond = "RT15H" if hx.wants_harness(task["prompt"], task.get("contract")) else "P"
     ws, verify = None, None
     if task["tools"] == "none":
         if cond == "RF":
@@ -70,10 +76,12 @@ def run_one(client, task, cond, rep, out):
             tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], finish_hint=True, tables=True)
         elif cond == "RT4":
             tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], finish_hint=True, clean_tables=True)
-        elif cond in ("RT5", "RT6", "RT7", "RT8", "RT5T", "RT9", "RT10", "RT11", "RT13H"):   # RT4, but a tab table keeps its tab delimiter
+        elif cond in ("RT5", "RT6", "RT7", "RT8", "RT5T", "RT9", "RT10", "RT11", "RT13H", "RT14H"):   # RT4, but a tab table keeps its tab delimiter
             tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], finish_hint=True, clean_tables="keep")
         elif cond == "RTB":
             tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], tables=True)
+        elif cond == "RT15H":
+            tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], clean_tables="keep")
         else:
             tools = env.python_tool(out / "ws" / tag) if cond in ("R", "RH", "RS") else {}
     elif task["tools"] == "erp":
@@ -87,7 +95,7 @@ def run_one(client, task, cond, rep, out):
         def verify():
             r = ws.run_tests()
             return r["exit_code"] == 0, r["output"][-1200:]
-    if cond in ("PT", "RT5T"):              # the model's own long thinking turned on (RT5T: with the harness)
+    if cond in ("PT", "RT5T", "RT14H"):     # the model's own long thinking turned on (RT5T, RT14H: with the harness)
         client = copy.copy(client)
         client.extra = {**client.extra, **json.loads(os.getenv("LLM_THINK_EXTRA", "{}"))}
         client.max_tokens = 16000
@@ -120,9 +128,9 @@ SKILL_FILE = {"erp": "erp.md", "code": "code.md", "doc": "doc.md", "none": "pyth
 
 def system_for(task, cond):
     """HS and RS add the skill file of the task's tool family to the system prompt; others use the plain one."""
-    if cond not in ("HS", "RS", "RX", "RT", "RT2", "RT4", "RT5", "RT6", "RT7", "RT8", "RT5T", "RT9", "RT10", "RT11", "RT13H", "RTB"):
+    if cond not in ("HS", "RS", "RX", "RT", "RT2", "RT4", "RT5", "RT6", "RT7", "RT8", "RT5T", "RT9", "RT10", "RT11", "RT13H", "RT14H", "RT15H", "RTB"):
         return hx.SYSTEM
-    name = {"RX": "python_v2.md", "RT": "python_v3.md", "RT2": "python_v3.md", "RT4": "python_v3.md", "RT5": "python_v3.md", "RT6": "python_v3.md", "RT7": "python_v4.md", "RT8": "python_v4.md", "RT5T": "python_v3.md", "RT9": "python_v3.md", "RT10": "python_v3.md", "RT11": "python_v4.md", "RT13H": "python_v5.md", "RTB": "python_v3b.md"}.get(cond, SKILL_FILE[task["tools"]])
+    name = {"RX": "python_v2.md", "RT": "python_v3.md", "RT2": "python_v3.md", "RT4": "python_v3.md", "RT5": "python_v3.md", "RT6": "python_v3.md", "RT7": "python_v4.md", "RT8": "python_v4.md", "RT5T": "python_v3.md", "RT9": "python_v3.md", "RT10": "python_v3.md", "RT11": "python_v4.md", "RT13H": "python_v5.md", "RT14H": "python_v5.md", "RT15H": "python_v5.md", "RTB": "python_v3b.md"}.get(cond, SKILL_FILE[task["tools"]])
     text = (SKILLS / name).read_text(encoding="utf-8").strip()
     return hx.SYSTEM + "\n\n# How to work with these tools\n" + text
 
