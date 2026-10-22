@@ -563,9 +563,10 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                     events.append("emptycheck")
                     messages.append({"role": "user", "content": (
                         "[harness] Before this answer is accepted: the field(s) " + ", ".join(blank) + " are empty. "
-                        "Check the request and the data for a value that belongs there (for example a unit given in a "
-                        "table heading or in the text). Fill it if the request or the data gives one; leave it empty "
-                        "only if nothing applies. Then print the answer line again.")})
+                        "Decide what belongs there from the request's own instructions for that field. A unit field "
+                        "is the unit of the answer itself: a ratio, share or rate of change is a percentage; an "
+                        "amount keeps the unit the data uses for it. Leave it empty only if the request says so for "
+                        "this kind of answer. Then print the answer line again.")})
                     continue
             if finished is not None and "numcheck" in feats and not numchecked:
                 extra = foreign_numbers(last_code, task_prompt)
