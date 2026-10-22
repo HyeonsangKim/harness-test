@@ -63,8 +63,8 @@
 |---|---|---|---|---|---|
 | 1 | IFBench (NeurIPS 2025) | `tasks_ifbench.py`, split `ifbench` | 50 | 제약 있는 글쓰기, 공식 prompt-level loose | 완성. 2문항 시험 실행 완료 |
 | 2 | SpreadsheetBench Verified (NeurIPS 2024) | `tasks_ssb.py`, split `ssb` | 50 (`ssb_ids_50.txt`) | 실제 엑셀 포럼 질문, 대상 셀 값을 JSON으로 답 | 완성. 시험 실행 전 |
-| 3 | CUAD (NeurIPS 2021) | `tasks_cuad.py`, split `cuad` | 40 | 계약서 조항 뽑기 → JSON, Jaccard ≥ 0.5 | 제작 중 |
-| 4 | 한국어 기관 문서 QA (allganize) | `tasks_kodoc.py`, split `kodoc` | 60 | 실제 기관 PDF 쪽 ±1, 핵심 사실 체크리스트 | 제작 중 |
+| 3 | CUAD (NeurIPS 2021) | `tasks_cuad.py`, split `cuad` | 40 | 실제 SEC 계약서 1만 2천 자 창, 범주 5개(있음 3 + 없음 2), Jaccard ≥ 0.5, 5개 모두 맞아야 통과 | 완성. 시험 실행 전 |
+| 4 | 한국어 기관 문서 QA (allganize) | `tasks_kodoc.py`, split `kodoc` | 60 | 실제 기관 PDF 근거 쪽 ±1, 5분야 × 12, 핵심 사실 체크리스트(Claude 작성, 6건 손 대조) | 완성. 시험 실행 전 |
 
 - **조건:**
   - P(그냥 답하기), PT(사고 모드), RT22(하네스)를 쓴다.
@@ -93,6 +93,8 @@
   - 사고 모드는 짧은 글쓰기도 6~13분이다(생각 토큰 약 8천).
   - 사고 모드가 시간 대부분을 차지한다.
   - 서버 공용 문맥 6만 5천에서 동시 실행 3을 넘기면 넘친다. `-c 131072`로 늘려 4개를 돌리는 안은 아직 시험하지 않았다.
+- **CUAD 알려진 점:** "없음" 판정은 CUAD 표시가 완전하다는 가정에 기댄다. 인용 범위가 정답과 다르면 Jaccard 0.5를 못 넘을 수 있다. 원 논문 지표(AUPR)와 직접 비교할 수 없다.
+- **한국어 문서 QA 알려진 점:** 원래 검색까지 하는 시험인데 근거 쪽을 직접 주므로 원 리더보드와 비교할 수 없다. 받을 수 있던 PDF만 썼다(64개 중 57개). PDF 원본은 제3자 저작물이라 커밋하지 않는다(`ext/kodoc`, 준비는 `kodoc_extract.py`, PyMuPDF 필요).
 - **SpreadsheetBench 알려진 점:**
   - 원래 과제는 수식 쓰기다. 여기서는 셀 값을 답하게 바꿨다.
   - 채점은 공식보다 조금 너그럽다(공백, 대소문자, 날짜 형식). `tasks_ssb.py` 머리말에 차이를 적어 두었다.
