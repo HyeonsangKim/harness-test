@@ -308,7 +308,7 @@ def extract_tables(text, min_rows=3, clean=False):
 _NUM = re.compile(r"[\s$₩(−-]*[\d.,]+\s*%?\)?\s*(원)?")
 
 
-def normalize_table(d, rows, out=","):
+def normalize_table(d, rows, out=",", top_only=False):
     """One clean CSV (delimiter `out`) from an extracted table: cells stripped, outer | and markdown alignment rows
     removed, header rows above the data (no number cells, or an empty first cell) merged into one name per
     column, empty names filled as col1, col2, ... and duplicates numbered. Returns (header, csv_text)."""
@@ -333,7 +333,7 @@ def normalize_table(d, rows, out=","):
             break
         k += 1
     head = cells[:k]
-    for r in head[:-1]:                              # a group name spans the empty cells to its right
+    for r in (head[:1] if top_only and len(head) > 1 else head[:-1]):   # a group name spans the empty cells to its right
         for j in range(1, width):
             if not r[j] and r[j - 1] and j > 1:
                 r[j] = r[j - 1]
@@ -400,7 +400,7 @@ def python_tool(workdir, input_text=None, finish_hint=False, tables=False, clean
         found = []
         for d, rows in extract_tables(input_text, clean="v2" if clean_tables == "keep2" else True):
             out = "\t" if keep_tab and d == "\t" else ","
-            found.append((out, *normalize_table(d, rows, out)))
+            found.append((out, *normalize_table(d, rows, out, top_only=clean_tables == "keep2")))
         for i, (out, names, body) in enumerate(found, 1):
             (root / f"table_{i}.csv").write_text(body, encoding="utf-8")
         if found and keep_tab:
