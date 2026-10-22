@@ -571,7 +571,9 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                     + "\nFind which one follows every rule in the request, fix it if needed, and give the final answer "
                     "in the required format.")
         return None
-    rule_review = "rulegate" in feats and has_cleanup_rules(task_prompt)
+    # with the rule checklist (rulecheck) the review happens at the answer gate, so autofinish stays on: turning it
+    # off made the model print answer lines turn after turn that were never taken (the tool says printing answers)
+    rule_review = "rulegate" in feats and "rulecheck" not in feats and has_cleanup_rules(task_prompt)
     if rule_review:
         events.append("rule_review")
     # adaptive thinking: the model's own long thinking only when reading is hard (a table, a long request, cleanup
