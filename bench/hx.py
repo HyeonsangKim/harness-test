@@ -45,6 +45,9 @@ FEATURES_NT6 = FEATURES_NT2 + ("numcheck",)
 # writing, choices, yes/no are not pushed into code)
 FEATURES_NT7 = FEATURES_NT2 + ("evidence_auto",)
 FEATURES_NT7C = FEATURES_NT6 + ("evidence_auto",)
+# v9: before autofinish, a text field of the answer left empty is pointed out once (a program fills the numbers
+# carefully but tends to leave a unit or label field blank, which the model would have read off the data)
+FEATURES_NT9 = FEATURES_NT7 + ("emptycheck",)
 # v3b: tables as files but no autofinish (the model reviews the program output before answering)
 
 
@@ -438,6 +441,7 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
     used = sum(1 for m in messages if m["role"] == "assistant")
     bad_calls, room = 0, None
     numchecked, last_code = False, ""
+    emptychecked = False
     for turn in range(used, max_turns):
         save(False)
         try:
@@ -549,6 +553,19 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                         + "\n- second: " + json.dumps(key, ensure_ascii=False)
                         + "\nFind which one follows the rules in the request (check each rule), fix it if needed, "
                         "and reply with the final answer in the required format.")})
+                    continue
+            if finished is not None and "emptycheck" in feats and not emptychecked:
+                parsed = grade.parse_json(finished) or {}
+                blank = [k for k, t in ((contract or {}).get("keys") or {}).items()
+                         if t in ("str", "any") and str(parsed.get(k, "")).strip() == ""]
+                if blank:
+                    emptychecked, finished = True, None
+                    events.append("emptycheck")
+                    messages.append({"role": "user", "content": (
+                        "[harness] Before this answer is accepted: the field(s) " + ", ".join(blank) + " are empty. "
+                        "Check the request and the data for a value that belongs there (for example a unit given in a "
+                        "table heading or in the text). Fill it if the request or the data gives one; leave it empty "
+                        "only if nothing applies. Then print the answer line again.")})
                     continue
             if finished is not None and "numcheck" in feats and not numchecked:
                 extra = foreign_numbers(last_code, task_prompt)
