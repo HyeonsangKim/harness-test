@@ -42,6 +42,8 @@ def features_of(cond):
         return hx.FEATURES_NT11
     if cond == "RT21H":
         return hx.FEATURES_NT12
+    if cond == "RT22H":
+        return hx.FEATURES_NT13
     if cond in ("RT16H", "RT16TH", "RT18H"):
         return hx.FEATURES_NT10
     if cond == "RT17H":
@@ -78,6 +80,8 @@ def run_one(client, task, cond, rep, out):
         cond = "RT20H" if hx.wants_harness(task["prompt"], task.get("contract")) else "P"
     if cond == "RT21":                      # v12: RT19 + helpers (num/norm/date) + cleanup-rule review + compact + turn budget
         cond = "RT21H" if hx.wants_harness(task["prompt"], task.get("contract")) else "PT"
+    if cond == "RT22":                      # v13: RT21 + rule checklist + second independent program for hard requests
+        cond = "RT22H" if hx.wants_harness(task["prompt"], task.get("contract")) else "PT"
     if cond == "RT19":                      # RT14 with table extractor v2
         cond = "RT19H" if hx.wants_harness(task["prompt"], task.get("contract")) else "PT"
     if cond in ("RT16", "RT16T"):           # v10: routing, code requests get light rules, data requests get the full harness
@@ -120,7 +124,7 @@ def run_one(client, task, cond, rep, out):
                                     clean_tables="keep", helpers=True)
         elif cond == "RT16C":
             tools = env.python_tool(out / "ws" / tag)
-        elif cond == "RT21H":
+        elif cond in ("RT21H", "RT22H"):
             tools = env.python_tool(out / "ws" / tag, input_text=task["prompt"], finish_hint=True,
                                     clean_tables="keep2", helpers=True)
         elif cond in ("RT19H", "RT20H"):
@@ -143,7 +147,7 @@ def run_one(client, task, cond, rep, out):
         def verify():
             r = ws.run_tests()
             return r["exit_code"] == 0, r["output"][-1200:]
-    if cond in ("PT", "RT5T", "RT14H", "RT16TH", "RT19H", "RT21H"):     # the model's own long thinking turned on (RT5T, RT14H: with the harness)
+    if cond in ("PT", "RT5T", "RT14H", "RT16TH", "RT19H", "RT21H", "RT22H"):     # the model's own long thinking turned on (RT5T, RT14H: with the harness)
         client = copy.copy(client)
         client.extra = {**client.extra, **json.loads(os.getenv("LLM_THINK_EXTRA", "{}"))}
         client.max_tokens = 16000
@@ -160,7 +164,7 @@ def run_one(client, task, cond, rep, out):
             res = hx.run(client, task["prompt"], tools, features=features_of(cond), control=(cond == "C"),
                          contract=task.get("contract"), verify=verify, trace=out / "traces" / f"{tag}.json",
                          system=system_for(task, cond), resume=ws is None, think_client=think_client,
-                         max_turns=12 + min(8, len(task["prompt"]) // 3000) if cond == "RT21H" else 12)
+                         max_turns=12 + min(8, len(task["prompt"]) // 3000) if cond in ("RT21H", "RT22H") else 12)
     except Exception as e:  # noqa: BLE001 - anything that escapes the loop is an infrastructure failure
         return {"task": task["id"], "domain": task["domain"], "cond": label, "rep": rep, "pass": False,
                 "turns": 0, "calls": 0, "events": [], "error": f"connection: {type(e).__name__}: {e}"[:200],
@@ -182,9 +186,9 @@ SKILL_FILE = {"erp": "erp.md", "code": "code.md", "doc": "doc.md", "none": "pyth
 
 def system_for(task, cond):
     """HS and RS add the skill file of the task's tool family to the system prompt; others use the plain one."""
-    if cond not in ("HS", "RS", "RX", "RT", "RT2", "RT4", "RT5", "RT6", "RT7", "RT8", "RT5T", "RT9", "RT10", "RT11", "RT13H", "RT14H", "RT15H", "RT16H", "RT16TH", "RT16C", "RT17H", "RT18H", "RT19H", "RT20H", "RT21H", "RTB"):
+    if cond not in ("HS", "RS", "RX", "RT", "RT2", "RT4", "RT5", "RT6", "RT7", "RT8", "RT5T", "RT9", "RT10", "RT11", "RT13H", "RT14H", "RT15H", "RT16H", "RT16TH", "RT16C", "RT17H", "RT18H", "RT19H", "RT20H", "RT21H", "RT22H", "RTB"):
         return hx.SYSTEM
-    name = {"RX": "python_v2.md", "RT": "python_v3.md", "RT2": "python_v3.md", "RT4": "python_v3.md", "RT5": "python_v3.md", "RT6": "python_v3.md", "RT7": "python_v4.md", "RT8": "python_v4.md", "RT5T": "python_v3.md", "RT9": "python_v3.md", "RT10": "python_v3.md", "RT11": "python_v4.md", "RT13H": "python_v5.md", "RT14H": "python_v5.md", "RT15H": "python_v5.md", "RT16H": "python_v6.md", "RT16TH": "python_v6.md", "RT16C": "python_code.md", "RT17H": "python_v3.md", "RT18H": "python_v6.md", "RT19H": "python_v5.md", "RT20H": "python_v5.md", "RT21H": "python_v7.md", "RTB": "python_v3b.md"}.get(cond, SKILL_FILE[task["tools"]])
+    name = {"RX": "python_v2.md", "RT": "python_v3.md", "RT2": "python_v3.md", "RT4": "python_v3.md", "RT5": "python_v3.md", "RT6": "python_v3.md", "RT7": "python_v4.md", "RT8": "python_v4.md", "RT5T": "python_v3.md", "RT9": "python_v3.md", "RT10": "python_v3.md", "RT11": "python_v4.md", "RT13H": "python_v5.md", "RT14H": "python_v5.md", "RT15H": "python_v5.md", "RT16H": "python_v6.md", "RT16TH": "python_v6.md", "RT16C": "python_code.md", "RT17H": "python_v3.md", "RT18H": "python_v6.md", "RT19H": "python_v5.md", "RT20H": "python_v5.md", "RT21H": "python_v7.md", "RT22H": "python_v7.md", "RTB": "python_v3b.md"}.get(cond, SKILL_FILE[task["tools"]])
     text = (SKILLS / name).read_text(encoding="utf-8").strip()
     return hx.SYSTEM + "\n\n# How to work with these tools\n" + text
 

@@ -55,6 +55,8 @@ FEATURES_NT10 = FEATURES_NT9 + ("rulegate", "compact")
 FEATURES_NT11 = FEATURES_NT9 + ("adaptive_think",)
 # v12 (RT21): RT19 + cleanup-rule review + shortened data in later turns (helpers and turn budget set by ab.py)
 FEATURES_NT12 = FEATURES_NT9 + ("rulegate", "compact", "errgate")
+# v13 (RT22): RT21 + rule checklist before an answer is accepted + a second independent program for hard requests
+FEATURES_NT13 = FEATURES_NT12 + ("rulecheck", "crosshard")
 # v3b: tables as files but no autofinish (the model reviews the program output before answering)
 
 
@@ -200,6 +202,36 @@ def output_reports_trouble(tool_output):
         return False
     lines = [l for l in str(res.get("stdout", "")).splitlines() if l.strip()][:-1]   # not the answer line itself
     return any(_OUTPUT_TROUBLE.search(l) for l in lines)
+
+
+_RULE_WORDS = re.compile(r"규칙|제외|중복|무시|한 번만|단위|환산|우선|정정|반올림|버림|절사|올림|기준|포함하지|빼고|"
+                         r"만 (?:집계|계산|센|인정)|면세|비과세|한도|상한|하한|가산|할인|초과|미만|이상|이하|"
+                         r"\bexcept\b|\bexclude|\bignore\b|only|round|treat|unless|at most|at least", re.IGNORECASE)
+
+
+def rule_lines(request, limit=12):
+    """Sentences of the request that state a rule (exclusions, duplicates, units, precedence, limits, rounding).
+    Data rows are skipped: lines with many digits or table delimiters."""
+    out, seen = [], set()
+    for line in (request or "").splitlines():
+        if line.count("\t") >= 1 or line.count("|") >= 2 or line.count(",") >= 3:
+            continue
+        for part in re.split(r"(?<=[.。])\s+|(?<=다\.)|(?<=요\.)", line):
+            part = part.strip(" -*•")
+            if len(part) < 8 or not _RULE_WORDS.search(part):
+                continue
+            if sum(ch.isdigit() for ch in part) > 0.3 * len(part):
+                continue
+            key = part[:60]
+            if key not in seen:
+                seen.add(key)
+                out.append(part[:200])
+    return out[:limit]
+
+
+def is_hard_request(request):
+    """Long data or many stated rules: worth a second, independent program before an answer is accepted."""
+    return len(request or "") > 6000 or len(rule_lines(request)) >= 4
 
 
 def finish_line(tool_output, contract):
@@ -508,6 +540,37 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
     bad_calls, room = 0, None
     numchecked, last_code = False, ""
     emptychecked = False
+    gate = {"rules": rule_lines(task_prompt) if "rulecheck" in feats else [], "rules_done": False,
+            "hard": "crosshard" in feats and is_hard_request(task_prompt), "stage": None, "first": None}
+
+    def final_gate(candidate):
+        """Checks before an answer is accepted: the stated rules one by one, then (for hard requests) a second,
+        independent program that must reach the same answer. Returns a message for the model, or None."""
+        if gate["rules"] and not gate["rules_done"]:
+            gate["rules_done"] = True
+            events.append("rulecheck")
+            return ("[harness] Before this answer is accepted, check it against every rule in the request:\n"
+                    + "\n".join(f"{i}. {r}" for i, r in enumerate(gate["rules"], 1))
+                    + "\nFor each rule, say in one line where your program applies it. If one is missing or wrong, "
+                    "fix the program and run it again. Then give the final answer in the required format.")
+        if gate["hard"] and gate["stage"] is None:
+            gate["stage"], gate["first"] = "asked", _norm_answer(candidate)
+            events.append("crosshard_ask")
+            return ("[harness] This request has a lot of data or many rules. Before the answer is accepted, write a "
+                    "second, independent program that computes the same answer another way (do not copy the first "
+                    "program), and print its answer as the last line in the required format.")
+        if gate["hard"] and gate["stage"] == "asked":
+            gate["stage"] = "done"
+            second = _norm_answer(candidate)
+            if second == gate["first"]:
+                events.append("crosshard_agree")
+                return None
+            events.append("crosshard_disagree")
+            return ("[harness] The two programs disagree:\n- first: " + json.dumps(gate["first"], ensure_ascii=False)
+                    + "\n- second: " + json.dumps(second, ensure_ascii=False)
+                    + "\nFind which one follows every rule in the request, fix it if needed, and give the final answer "
+                    "in the required format.")
+        return None
     rule_review = "rulegate" in feats and has_cleanup_rules(task_prompt)
     if rule_review:
         events.append("rule_review")
@@ -665,6 +728,12 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                         "wording (for example a unit conversion the request implies), keep it. Then run the "
                         "program again.")})
                     continue
+            if finished is not None and ("rulecheck" in feats or "crosshard" in feats):
+                note = final_gate(finished)
+                if note:
+                    finished = None
+                    messages.append({"role": "user", "content": note})
+                    continue
             if finished is not None:
                 answer = finished
                 events.append("autofinish")
@@ -693,6 +762,11 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                 rechecks["verify"] += 1
                 kind = "recheck_verify"
                 feedback = f"[harness] Automatic check failed, so the task is not done yet:\n{detail}\nFix it, then answer again."
+        if feedback is None and ("rulecheck" in feats or "crosshard" in feats) \
+                and not contract_problems(content, contract):
+            note = final_gate(content)
+            if note:
+                feedback, kind = note, "final_gate"
         if feedback is None and control and not rechecks["control"]:
             rechecks["control"] = 1
             kind = "recheck_control"
