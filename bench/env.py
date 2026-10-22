@@ -333,7 +333,7 @@ def normalize_table(d, rows, out=","):
     return names, buf.getvalue()
 
 
-def python_tool(workdir, input_text=None, finish_hint=False, tables=False, clean_tables=False):
+def python_tool(workdir, input_text=None, finish_hint=False, tables=False, clean_tables=False, helpers=False):
     """A single general-purpose action for tasks without domain tools.
     Runs a standard-library Python program in its own folder with a 20 s limit, no inherited
     environment variables (so no keys), isolated mode (-I). This prevents accidents; it is not a security sandbox."""
@@ -342,6 +342,9 @@ def python_tool(workdir, input_text=None, finish_hint=False, tables=False, clean
     counter = {"n": 0}
     if input_text is not None:   # the user's message, so the model reads data instead of retyping it
         (root / "input.txt").write_text(input_text, encoding="utf-8")
+    if helpers:                  # num() and norm() for amounts and names written the way people write them
+        (root / "helpers.py").write_text((Path(__file__).with_name("helpers_lib.py")).read_text(encoding="utf-8"),
+                                         encoding="utf-8")
     keep = {k: os.environ[k] for k in ("PATH", "SYSTEMROOT", "TEMP", "TMP") if k in os.environ}
     # seconds per program: stops runaway loops, not model thinking. Grows with the size of the data handed over,
     # so one default fits every model; LLM_PY_TIMEOUT overrides it.
@@ -359,7 +362,11 @@ def python_tool(workdir, input_text=None, finish_hint=False, tables=False, clean
     def run_python(code):
         counter["n"] += 1
         path = root / f"snippet_{counter['n']:02d}.py"
-        path.write_text(str(code), encoding="utf-8")
+        code = str(code)
+        if helpers and not code.lstrip().startswith("from __future__"):
+            # isolated mode leaves the working folder off sys.path; add it on the first line so line numbers match
+            code = "import sys as _h; _h.path.insert(0, ''); del _h; " + code.lstrip("\n") if code.strip() else code
+        path.write_text(code, encoding="utf-8")
         try:
             r = subprocess.run([sys.executable, "-I", "-X", "utf8", path.name], cwd=root, env=keep,
                                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=limit)
@@ -406,6 +413,10 @@ def python_tool(workdir, input_text=None, finish_hint=False, tables=False, clean
         desc += (" The user's whole message, including any pasted data, is saved as the file input.txt in the "
                  "working directory: read it with open('input.txt', encoding='utf-8').read() instead of "
                  "copying the data into your code.")
+    if helpers:
+        desc += (" A helper module is in the folder: from helpers import num, norm. num(text) reads a number "
+                 "written the way people write it ('2억6천만원', '(1,234)', '$5.2', '12.5%', '1,597,000원'); "
+                 "norm(text) gives a key for comparing names (spaces removed, case-folded, (주) dropped).")
     if finish_hint:
         desc += (" When the program computes the final result, make its last printed line the final answer in "
                  "exactly the format the user asked for; that line is then used as your reply.")

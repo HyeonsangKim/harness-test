@@ -48,6 +48,9 @@ FEATURES_NT7C = FEATURES_NT6 + ("evidence_auto",)
 # v9: before autofinish, a text field of the answer left empty is pointed out once (a program fills the numbers
 # carefully but tends to leave a unit or label field blank, which the model would have read off the data)
 FEATURES_NT9 = FEATURES_NT7 + ("emptycheck",)
+# v10: + no autofinish when the request states cleanup rules (the model checks the output against them),
+# + later turns see the pasted data shortened (it is in input.txt and table files)
+FEATURES_NT10 = FEATURES_NT9 + ("rulegate", "compact")
 # v3b: tables as files but no autofinish (the model reviews the program output before answering)
 
 
@@ -133,7 +136,44 @@ def wants_harness(request, contract):
     the working rules for code distract a small model from writing instructions (IFEval)."""
     if (contract or {}).get("type") == "json":
         return True
-    return needs_code(request, contract) or bool(_CODE_ASK.search(request or ""))
+    return needs_code(request, contract) or bool(_CODE_ASK.search(request or "")) or asks_for_number(request)
+
+
+_CALC_ASK = re.compile(r"합계|평균|총액|몇 (?:명|개|건|일|시간|번)|얼마|비율|증가율|감소율|차이는|계산|"
+                       r"how many|how much|in total|average|percentage|what is the (?:sum|total|difference)",
+                       re.IGNORECASE)
+
+
+def asks_for_number(request):
+    """A free-text question that asks for a computed number from figures it gives (at least three numbers)."""
+    text = request or ""
+    return bool(_CALC_ASK.search(text)) and len(re.findall(r"\d[\d,]*(?:\.\d+)?", text)) >= 3
+
+
+_RULE_CUES = re.compile(r"무시|한 번만|같은 (?:것|사람|품목|거래처|입고)|중복|제외하|빼고|세지 (?:않|마)|합계 행|소계|메모|"
+                        r"\bignore\b|only once|\bexclude|duplicate|do not count|treat .{0,30} as the same", re.IGNORECASE)
+
+
+def has_cleanup_rules(request):
+    """The request states rules for cleaning the data (duplicates, notes, rows not to count). A program's first
+    output often misses one of them, so the model should look at the output before answering."""
+    return len(_RULE_CUES.findall(request or "")) >= 2
+
+
+def _compact(messages, keep=1200):
+    """After the first reply, send the request with its pasted data shortened: the data is in input.txt and the
+    table files, so later turns do not need to read it again. The trace keeps the full text."""
+    if not any(m.get("role") == "assistant" for m in messages):
+        return messages
+    out, done = [], False
+    for m in messages:
+        c = m.get("content")
+        if not done and m.get("role") == "user" and isinstance(c, str) and len(c) > 3 * keep:
+            m = dict(m, content=c[:keep] + f"\n[harness] ... {len(c) - 2 * keep} characters of the pasted data are "
+                     "left out here; the full request is in input.txt and its tables in the table files ...\n" + c[-keep:])
+            done = True
+        out.append(m)
+    return out
 
 
 def finish_line(tool_output, contract):
@@ -442,10 +482,13 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
     bad_calls, room = 0, None
     numchecked, last_code = False, ""
     emptychecked = False
+    rule_review = "rulegate" in feats and has_cleanup_rules(task_prompt)
+    if rule_review:
+        events.append("rule_review")
     for turn in range(used, max_turns):
         save(False)
         try:
-            resp = client.chat(messages, specs, max_tokens=room)
+            resp = client.chat(_compact(messages) if "compact" in feats else messages, specs, max_tokens=room)
         except RuntimeError as e:
             if str(e).startswith("bad_tool_call") and "recover" in feats and bad_calls < 2:
                 # a tool call cut off by the output limit: give the next reply twice the room, like length_retry
@@ -472,7 +515,7 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
             tokens["prompt"] += u0.get("prompt_tokens") or 0
             tokens["completion"] += u0.get("completion_tokens") or 0
             try:
-                resp = client.chat(messages, specs, max_tokens=cap)
+                resp = client.chat(_compact(messages) if "compact" in feats else messages, specs, max_tokens=cap)
             except RuntimeError as e:
                 error = str(e)
                 resp = {}
@@ -521,7 +564,7 @@ def run(client, task_prompt, tools, features=(), control=False, contract=None, v
                     events.append("budget_warning")
                     out += "\n[harness] Only 2 turns are left. Finish now and give the final answer in the required format."
                 messages.append({"role": "tool", "tool_call_id": tc.get("id") or f"call_{turn}_{i}", "content": out})
-                if "autofinish" in feats and finished is None and not cross["off"]:
+                if "autofinish" in feats and finished is None and not cross["off"] and not rule_review:
                     finished = finish_line(out, contract)
                     code_now = json.dumps(args, sort_keys=True) if args is not None else ""
                     if finished is not None and "crosscheck" in feats and cross["first"] is not None \
