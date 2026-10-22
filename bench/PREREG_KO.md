@@ -641,3 +641,7 @@
   - **조건:** P, PT, 그리고 RT13(개발 기준을 넘지 못하면 RT12).
   - **판정:** 하네스 − PT의 95% 하한이 0보다 크면 "사고 모드보다 정확하다"고 쓴다.
   - PT는 하네스 버전과 무관하므로 문항이 정해지는 대로 먼저 돌린다.
+- **재대결 3 문항 확정 (실행 전):**
+  - `bench_ids_heldout3.txt` 200개(TAT-QA 100, GSM-Hard 100, 시드 2), `tasks_bench3.py`. 앞서 쓴 400개와 겹치지 않는다.
+  - GSM-Hard 정답 오류는 9개다(오류 8, 애매 1; `gsmhard_label_errors_heldout3.txt`, 근거 `gsmhard_label_audit_heldout3.json`). 메인 세션(Claude)이 2개(gsmh_0581, gsmh_1299)를 원문과 대조해 확인했다. 사람 확인은 아직 없다.
+  - 주 분석은 191문항이다.

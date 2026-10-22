@@ -1,0 +1,702 @@
+[
+ {
+  "id": "gsmh_0130",
+  "my_answer": 8771926.5,
+  "target": 8771926.5,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: half an apple"
+ },
+ {
+  "id": "gsmh_0214",
+  "my_answer": 35061370,
+  "target": 35061370.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0197",
+  "my_answer": 507210.5,
+  "target": 507210.5,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: half a ball"
+ },
+ {
+  "id": "gsmh_0830",
+  "my_answer": 12,
+  "target": 12.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0389",
+  "my_answer": 30756332,
+  "target": 30756332.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0714",
+  "my_answer": 38765694,
+  "target": 38765694.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0581",
+  "my_answer": 20,
+  "target": 18.0,
+  "verdict": "label_wrong",
+  "reason": "Code gives Sally +0.5/h (original number); question says +0.4, so Billy 11.4 vs Sally 10.4 -> 20."
+ },
+ {
+  "id": "gsmh_0486",
+  "my_answer": 134367812.5436776,
+  "target": 134367812.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0086",
+  "my_answer": 50,
+  "target": 50.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0364",
+  "my_answer": 112,
+  "target": 112.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0990",
+  "my_answer": 145548714.0,
+  "target": 145548714.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0901",
+  "my_answer": 4621890.75,
+  "target": 4621890.75,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: more 1-cup plants than total plants (negative remainder)"
+ },
+ {
+  "id": "gsmh_1175",
+  "my_answer": -25.000087102854533,
+  "target": -25.0000871029,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: negative gallons/lemon spend"
+ },
+ {
+  "id": "gsmh_0854",
+  "my_answer": 763646.6666666666,
+  "target": 763646.6666666666,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1259",
+  "my_answer": 9,
+  "target": 9.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1023",
+  "my_answer": 8,
+  "target": 8.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1159",
+  "my_answer": 20,
+  "target": 20.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0620",
+  "my_answer": 83.33334384813058,
+  "target": 4.33735e-05,
+  "verdict": "label_wrong",
+  "reason": "Code keeps original yearly spend 2640 instead of 5072217640."
+ },
+ {
+  "id": "gsmh_0066",
+  "my_answer": 1726970,
+  "target": 1726970.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0836",
+  "my_answer": -5230799,
+  "target": -5230799.0,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: negative Wednesday reports"
+ },
+ {
+  "id": "gsmh_1069",
+  "my_answer": 2390629.1999999997,
+  "target": 2390629.2,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0737",
+  "my_answer": 3859583.0,
+  "target": 3859583.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0873",
+  "my_answer": 7217941.66,
+  "target": 7217941.66,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0971",
+  "my_answer": 7.296353917111498e-06,
+  "target": 5.3974e-06,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1213",
+  "my_answer": 1294267.0,
+  "target": 13.0,
+  "verdict": "label_wrong",
+  "reason": "Code hardcodes original answer 13 (sum 87); with sum 7765611, 6x+9=7765611 -> 1294267."
+ },
+ {
+  "id": "gsmh_0377",
+  "my_answer": 316315.8,
+  "target": 316315.8,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1295",
+  "my_answer": 1750958.2857142857,
+  "target": 1750958.2857142857,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0407",
+  "my_answer": 3,
+  "target": 3.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0546",
+  "my_answer": 4349512.0,
+  "target": 4349512.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0535",
+  "my_answer": 3,
+  "target": 3.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0055",
+  "my_answer": 8710408.772727273,
+  "target": 8710408.772727273,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: fractional bag count"
+ },
+ {
+  "id": "gsmh_0405",
+  "my_answer": 5.158232655378219e-07,
+  "target": 5.158e-07,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: fraction of a week"
+ },
+ {
+  "id": "gsmh_0751",
+  "my_answer": -899901.7000000001,
+  "target": -899901.7000000001,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: negative monthly payment"
+ },
+ {
+  "id": "gsmh_0399",
+  "my_answer": 100,
+  "target": 100.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0319",
+  "my_answer": 7.53992066833603,
+  "target": 8.3099e-06,
+  "verdict": "label_wrong",
+  "reason": "Code keeps original 15 gallons instead of 13610160."
+ },
+ {
+  "id": "gsmh_1177",
+  "my_answer": -48997573,
+  "target": -48997573.0,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: negative boys count"
+ },
+ {
+  "id": "gsmh_0826",
+  "my_answer": 9,
+  "target": 9.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1186",
+  "my_answer": 4.7857142857142865,
+  "target": 4.7857142857,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1294",
+  "my_answer": 10,
+  "target": 10.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0419",
+  "my_answer": 972581.4285714285,
+  "target": 972581.4285714285,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1024",
+  "my_answer": 1080,
+  "target": 1080.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0950",
+  "my_answer": 9439740,
+  "target": 9439740.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1212",
+  "my_answer": 60,
+  "target": 60.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0813",
+  "my_answer": 50,
+  "target": 50.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0832",
+  "my_answer": 14584670,
+  "target": 14584670.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0370",
+  "my_answer": -6577918.0,
+  "target": -6577918.0,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: negative strawberry pack price"
+ },
+ {
+  "id": "gsmh_0916",
+  "my_answer": 70,
+  "target": 70.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1060",
+  "my_answer": 26,
+  "target": 26.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1225",
+  "my_answer": 3222248.75,
+  "target": 3222248.75,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0576",
+  "my_answer": 56437687.5,
+  "target": 56437687.5,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1133",
+  "my_answer": 2909086.5,
+  "target": 2909086.5,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: half a cookie"
+ },
+ {
+  "id": "gsmh_0645",
+  "my_answer": 25,
+  "target": 25.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1151",
+  "my_answer": 36,
+  "target": 36.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1156",
+  "my_answer": -60505738,
+  "target": -60505738.0,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: large negative profit"
+ },
+ {
+  "id": "gsmh_1189",
+  "my_answer": 4,
+  "target": 4.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1046",
+  "my_answer": 3473609,
+  "target": 3473609.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0807",
+  "my_answer": 5072529.6,
+  "target": 5072529.6,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1312",
+  "my_answer": 1168833.6,
+  "target": 1168833.6,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1289",
+  "my_answer": 25,
+  "target": 26.0,
+  "verdict": "label_wrong",
+  "reason": "Code adds +1 refill unconditionally (25//828650+1); 25 empties cannot make any new pen at 828650 per pen -> 25."
+ },
+ {
+  "id": "gsmh_1051",
+  "my_answer": 36,
+  "target": 36.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1124",
+  "my_answer": 22794076,
+  "target": 22794076.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0512",
+  "my_answer": 168,
+  "target": 168.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0750",
+  "my_answer": 7836127.5,
+  "target": 7836127.5,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0381",
+  "my_answer": 32,
+  "target": 32.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1104",
+  "my_answer": 130,
+  "target": 130.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0716",
+  "my_answer": 3423519.2,
+  "target": 3423519.2,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: fractional students"
+ },
+ {
+  "id": "gsmh_0703",
+  "my_answer": 48,
+  "target": 48.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1164",
+  "my_answer": 14564160.0,
+  "target": 14564160.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1299",
+  "my_answer": 112430688.0,
+  "target": -28107372.0,
+  "verdict": "label_wrong",
+  "reason": "Code keeps original 50 bills ($1000) instead of $468461200/20 = 23423060 bills."
+ },
+ {
+  "id": "gsmh_1195",
+  "my_answer": 1,
+  "target": 1.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1172",
+  "my_answer": 9111696.0,
+  "target": 9111696.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0933",
+  "my_answer": 6141586,
+  "target": 7757792.0,
+  "verdict": "label_wrong",
+  "reason": "Code keeps original 3 friends (and omits Ryan himself) instead of 8404276 friends + Ryan."
+ },
+ {
+  "id": "gsmh_0721",
+  "my_answer": 6,
+  "target": 6.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0475",
+  "my_answer": -27173.5,
+  "target": -27173.0,
+  "verdict": "ambiguous",
+  "reason": "Code floors 272035/10=27203.5 days -> 30-27203=-27173; exact gives -27173.5 (ceil of days gives -27174); answer is negative/unrealistic anyway."
+ },
+ {
+  "id": "gsmh_1130",
+  "my_answer": 154999.5,
+  "target": 154999.5,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1182",
+  "my_answer": 240,
+  "target": 240.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0843",
+  "my_answer": 3160,
+  "target": 3160.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0173",
+  "my_answer": 20949125.0,
+  "target": 20949125.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0786",
+  "my_answer": 777926625.0,
+  "target": 777926625.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0020",
+  "my_answer": 4603904,
+  "target": 4603904.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0438",
+  "my_answer": 10603839.6,
+  "target": 10603839.6,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0247",
+  "my_answer": 94385164607506.12,
+  "target": 82436229.0,
+  "verdict": "label_wrong",
+  "reason": "Code keeps original share price $8 instead of $9159581."
+ },
+ {
+  "id": "gsmh_0135",
+  "my_answer": 315933300,
+  "target": 315933300.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0113",
+  "my_answer": 4736666,
+  "target": 4736666.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0631",
+  "my_answer": 7,
+  "target": 7.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0524",
+  "my_answer": 8738446,
+  "target": 8738446.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_1206",
+  "my_answer": 7,
+  "target": 7.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0614",
+  "my_answer": 11715798,
+  "target": 11715798.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0566",
+  "my_answer": 31375514,
+  "target": 31375514.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0483",
+  "my_answer": 4182885.8333333335,
+  "target": 4182885.8333333335,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0139",
+  "my_answer": 23103210.4,
+  "target": 23103210.4,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0970",
+  "my_answer": 0.08361165174818029,
+  "target": 0.0836116517,
+  "verdict": "ok",
+  "reason": "my_error fixed: I first scaled the wrong way; recipe needs actual 520, so set 520*450/2798653 (label right; unrealistic temperature)."
+ },
+ {
+  "id": "gsmh_0076",
+  "my_answer": 6588585.0,
+  "target": 6588585.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0131",
+  "my_answer": -425561.94444444444,
+  "target": -425561.9444444444,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: negative rats per cage"
+ },
+ {
+  "id": "gsmh_0833",
+  "my_answer": 13,
+  "target": 13.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0827",
+  "my_answer": 132103989,
+  "target": 132103989.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0396",
+  "my_answer": -4487772.5,
+  "target": -4487772.5,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: negative change"
+ },
+ {
+  "id": "gsmh_0575",
+  "my_answer": -1594664,
+  "target": -1594664.0,
+  "verdict": "ok",
+  "reason": "matches independent solution; literal arithmetic, unrealistic: negative passengers"
+ },
+ {
+  "id": "gsmh_0192",
+  "my_answer": 3453167.0,
+  "target": 3453167.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ },
+ {
+  "id": "gsmh_0269",
+  "my_answer": 29506470,
+  "target": 29506470.0,
+  "verdict": "ok",
+  "reason": "matches independent solution"
+ }
+]
