@@ -645,3 +645,4 @@
   - `bench_ids_heldout3.txt` 200개(TAT-QA 100, GSM-Hard 100, 시드 2), `tasks_bench3.py`. 앞서 쓴 400개와 겹치지 않는다.
   - GSM-Hard 정답 오류는 9개다(오류 8, 애매 1; `gsmhard_label_errors_heldout3.txt`, 근거 `gsmhard_label_audit_heldout3.json`). 메인 세션(Claude)이 2개(gsmh_0581, gsmh_1299)를 원문과 대조해 확인했다. 사람 확인은 아직 없다.
   - 주 분석은 191문항이다.
+- **재대결 2 PT 중단:** 179/200건에서 멈춘다. 남은 건은 대부분 모순·정답 오류 문항이다. 대기 시간 초과로 한 건에 서버 자리 하나를 1시간씩 차지한다. 재대결 2는 개발 문항이 됐으므로 서버 시간을 재대결 3에 쓴다. 재대결 2의 PT 결과는 끝난 문항으로 보고한다.
