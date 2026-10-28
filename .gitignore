@@ -4,3 +4,4 @@ __pycache__/
 bench/runs/*/ws/
 bench/*.log
 bench/ext/
+deepseek/runs/

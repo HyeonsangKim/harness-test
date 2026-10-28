@@ -1,0 +1,2 @@
+이 폴더의 test_calc.py 테스트가 모두 통과하도록 calc.py를 고쳐라. 테스트 파일은 고치지 않는다.
+테스트 실행: uv run --offline --no-project --python 3.12 -m unittest -v
