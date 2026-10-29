@@ -4,11 +4,45 @@
 
 | 순서 | 할 일 | 파일 | 시간 |
 |---|---|---|---|
+| 0 | 어느 경로로 갈지 확인 | — | 1분 |
 | 1 | 받기와 설정 | — | 5분 |
 | 2 | 진단: 무엇이 느린지 | `deepseek/ds_check.py` | 10~30분 |
 | 3 | 최소 에이전트로 연습 과제 | `deepseek/ds_agent.py` | 5~20분 |
 | 4 | Claude Code로 같은 과제 | `deepseek/ds_proxy.py` | 10~30분 |
 | 5 | 결과 옮기기 | — | 5분 |
+
+## 0. 먼저: 어느 경로로 갈지 1분 확인
+
+모델을 부르지 않고 두 가지만 본다.
+
+- **프록시**: `ds_proxy.py`는 설치가 필요 없다(표준 라이브러리). 다만 일부 보안 프로그램은 PC 안에서 포트를 여는 것을 막는다.
+- **Claude Code**: 사내 PC에 설치돼 있는지 본다.
+
+```powershell
+cd $env:USERPROFILE\work\harness-test
+git pull
+cd deepseek
+$env:LLM_URL = "https://<게이트웨이>/v1/chat/completions"; $env:LLM_MODEL = "x"; $env:LLM_API_KEY = "x"
+uv run --offline --no-project --python 3.12 ds_proxy.py
+```
+
+프록시가 `Ctrl+C로 끕니다.`를 띄우면 **다른 PowerShell 창**에서:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8787/     # status: ok 가 나오면 프록시 사용 가능
+where.exe claude                              # 경로가 나오면 Claude Code 설치됨
+```
+
+확인이 끝나면 프록시 창에서 Ctrl+C로 끄고, 그 창에서 `Remove-Item Env:LLM_API_KEY`로 가짜 키를 지운다.
+
+| 프록시 | Claude Code | 갈 경로 |
+|---|---|---|
+| ok | 있음 | 1 → 2 → 3 → 4절 전부 |
+| 막힘 | 있음 | 1 → 2 → 3절. 2절 마지막 줄이 `Anthropic 형식 200`이면 4절 "직접 연결"로 Claude Code도 쓴다 |
+| 상관없음 | 없음 | 1 → 2 → 3절. 4절은 건너뛴다. `ds_agent.py`는 프록시도 Claude Code도 쓰지 않는다 |
+
+- 프록시가 막혔을 때 보이는 것: 프록시 창의 `PermissionError`/`OSError`, 또는 `Invoke-RestMethod`의 연결 거부.
+- 포트 8787이 이미 쓰이고 있으면 `--port 18787`처럼 다른 번호로 띄우고, 4절의 `ANTHROPIC_BASE_URL`도 같은 번호로 바꾼다.
 
 ## 배경: 왜 두 하네스인가
 
